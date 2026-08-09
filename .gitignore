@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+sharebite-pdp.md
+appflow.md
+food-sharing-app.jsx
