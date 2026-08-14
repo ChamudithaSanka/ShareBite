@@ -11,6 +11,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 
 // Recipient navigator (implemented)
 import RecipientNavigator from './RecipientNavigator';
+import VolunteerNavigator from './VolunteerNavigator';
 
 const Stack = createStackNavigator();
 
@@ -43,7 +44,7 @@ function RoleNavigator({ role }) {
     case 'donor':
       return <ComingSoonScreen route={{ params: { role: 'Donor' } }} />;
     case 'volunteer':
-      return <ComingSoonScreen route={{ params: { role: 'Volunteer' } }} />;
+      return <VolunteerNavigator />;
     case 'coordinator':
       return <ComingSoonScreen route={{ params: { role: 'Coordinator' } }} />;
     default:
