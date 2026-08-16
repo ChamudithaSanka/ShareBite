@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 
 // Auth screens
 import SplashScreen from '../screens/auth/SplashScreen';
+import OnboardScreen from '../screens/auth/OnboardScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 
@@ -31,6 +32,7 @@ function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Splash" component={SplashScreen} />
+      <Stack.Screen name="Onboard" component={OnboardScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>

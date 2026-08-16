@@ -4,6 +4,7 @@ import {
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
   Platform, ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 
@@ -39,8 +40,14 @@ export default function LoginScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.logo}>🌱</Text>
-          <Text style={styles.title}>Welcome back</Text>
+          <Image
+            source={require('../../../assets/login.png')}
+            style={styles.logo}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            transition={0}
+          />
+          <Text style={styles.title}>Welcome</Text>
           <Text style={styles.subtitle}>Sign in to your account</Text>
         </View>
 
@@ -100,7 +107,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
-  logo: { fontSize: 48, marginBottom: 12 },
+  logo: { width: 120, height: 120, borderRadius: 60, marginBottom: 10 },
   title: { fontSize: 26, fontWeight: '800', color: '#111827', letterSpacing: -0.3 },
   subtitle: { fontSize: 14, color: '#6B7280', marginTop: 4 },
   errorText: {
