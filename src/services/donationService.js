@@ -1,4 +1,15 @@
-import { addDoc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 export const donationService = {
@@ -17,6 +28,16 @@ export const donationService = {
     });
   },
 
+  async getDonationById(donationId) {
+    if (!donationId) return null;
+
+    const ref = doc(db, 'donations', donationId);
+    const snapshot = await getDoc(ref);
+
+    if (!snapshot.exists()) return null;
+    return { id: snapshot.id, ...snapshot.data() };
+  },
+
   async createDonation(donationData) {
     const payload = {
       ...donationData,
@@ -27,6 +48,16 @@ export const donationService = {
 
     const docRef = await addDoc(collection(db, 'donations'), payload);
     return docRef.id;
+  },
+
+  async updateDonationStatus(donationId, status) {
+    const ref = doc(db, 'donations', donationId);
+    await updateDoc(ref, { status });
+  },
+
+  async deleteDonation(donationId) {
+    const ref = doc(db, 'donations', donationId);
+    await deleteDoc(ref);
   },
 };
 
