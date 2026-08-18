@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { donationService } from '../../services/donationService';
 
 export default function DonorHomeScreen() {
+  const navigation = useNavigation();
   const { user, userProfile } = useAuth();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,13 +59,17 @@ export default function DonorHomeScreen() {
           <Text style={styles.emptyText}>No donations yet. Create your first one.</Text>
         ) : (
           donations.slice(0, 3).map((item) => (
-            <View key={item.id} style={styles.listItem}>
+            <TouchableOpacity
+              key={item.id}
+              style={styles.listItem}
+              onPress={() => navigation.navigate('DonationDetail', { donation: item })}
+            >
               <View>
                 <Text style={styles.itemName}>{item.foodName}</Text>
                 <Text style={styles.itemMeta}>{item.quantity} • {item.foodType}</Text>
               </View>
               <Text style={styles.itemStatus}>{item.status}</Text>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </View>

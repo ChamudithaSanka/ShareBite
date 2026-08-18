@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { donationService } from '../../services/donationService';
 
 export default function ManageDonationsScreen() {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,11 @@ export default function ManageDonationsScreen() {
         </View>
       ) : (
         donations.map((item) => (
-          <View key={item.id} style={styles.card}>
+          <TouchableOpacity
+            key={item.id}
+            style={styles.card}
+            onPress={() => navigation.navigate('DonationDetail', { donation: item })}
+          >
             <View style={styles.row}>
               <Text style={styles.foodName}>{item.foodName}</Text>
               <Text style={styles.status}>{item.status}</Text>
@@ -48,7 +54,7 @@ export default function ManageDonationsScreen() {
             <Text style={styles.meta}>{item.quantity} • {item.category}</Text>
             <Text style={styles.meta}>{item.foodType} • {item.condition}</Text>
             <Text style={styles.meta}>Pickup: {item.pickupLocation}</Text>
-          </View>
+          </TouchableOpacity>
         ))
       )}
     </ScrollView>
