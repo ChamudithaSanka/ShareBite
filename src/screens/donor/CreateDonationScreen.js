@@ -9,10 +9,16 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { useAuth } from '../../context/AuthContext';
 import { donationService } from '../../services/donationService';
 
 const GREEN = '#1A7A4A';
+
+const categoryOptions = ['Cooked meal', 'Fresh produce', 'Bakery', 'Snacks', 'Groceries', 'Other'];
+const conditionOptions = ['Fresh', 'Good', 'Needs quick use', 'Packaged'];
+const foodTypeOptions = ['ready-to-eat', 'storable'];
+const dateOptions = ['Today', 'Tomorrow', 'This weekend'];
 
 const initialForm = {
   foodName: '',
@@ -21,8 +27,11 @@ const initialForm = {
   condition: 'Fresh',
   expiry: '',
   foodType: 'ready-to-eat',
+  pickupDate: 'Today',
   pickupLocation: '',
   pickupAvailability: '',
+  pickupLatitude: null,
+  pickupLongitude: null,
   notes: '',
 };
 
@@ -31,6 +40,7 @@ export default function CreateDonationScreen() {
   const [form, setForm] = useState(initialForm);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   const updateField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -40,6 +50,41 @@ export default function CreateDonationScreen() {
       return;
     }
     setStep(2);
+  };
+
+  const handleUseCurrentLocation = async () => {
+    try {
+      setLocating(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        Alert.alert('Location permission needed', 'Please allow access to add current pickup location.');
+        setLocating(false);
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+      const { latitude, longitude } = currentLocation.coords;
+      const reverseGeocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+      const place = reverseGeocode[0];
+      const locationText = [
+        place?.name,
+        place?.street,
+        place?.city,
+        place?.region,
+      ].filter(Boolean).join(', ') || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+
+      updateField('pickupLocation', locationText);
+      updateField('pickupLatitude', latitude);
+      updateField('pickupLongitude', longitude);
+      updateField('pickupAvailability', form.pickupAvailability || 'ASAP');
+    } catch (error) {
+      console.error('Location fetch failed:', error);
+      Alert.alert('Location unavailable', 'We could not fetch your current location. Please enter it manually.');
+    } finally {
+      setLocating(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -64,8 +109,11 @@ export default function CreateDonationScreen() {
         condition: form.condition,
         expiry: form.expiry,
         foodType: form.foodType,
+        pickupDate: form.pickupDate,
         pickupLocation: form.pickupLocation,
         pickupAvailability: form.pickupAvailability,
+        pickupLatitude: form.pickupLatitude,
+        pickupLongitude: form.pickupLongitude,
         photoUrl: '',
         notes: form.notes,
         status: 'available',
@@ -101,23 +149,38 @@ export default function CreateDonationScreen() {
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Category</Text>
-            <TextInput style={styles.input} value={form.category} onChangeText={(value) => updateField('category', value)} />
+            <View style={styles.optionWrap}>
+              {categoryOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.optionChip, form.category === option && styles.optionChipActive]}
+                  onPress={() => updateField('category', option)}
+                >
+                  <Text style={[styles.optionText, form.category === option && styles.optionTextActive]}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Condition</Text>
-            <TextInput style={styles.input} value={form.condition} onChangeText={(value) => updateField('condition', value)} />
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Expiry</Text>
-            <TextInput style={styles.input} value={form.expiry} onChangeText={(value) => updateField('expiry', value)} placeholder="YYYY-MM-DD" />
+            <View style={styles.optionWrap}>
+              {conditionOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.optionChip, form.condition === option && styles.optionChipActive]}
+                  onPress={() => updateField('condition', option)}
+                >
+                  <Text style={[styles.optionText, form.condition === option && styles.optionTextActive]}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Food type</Text>
             <View style={styles.segmentedRow}>
-              {['ready-to-eat', 'storable'].map((type) => (
+              {foodTypeOptions.map((type) => (
                 <TouchableOpacity
                   key={type}
                   style={[styles.segmentButton, form.foodType === type && styles.segmentButtonActive]}
@@ -131,6 +194,17 @@ export default function CreateDonationScreen() {
             </View>
           </View>
 
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Best before / expiry</Text>
+            <TextInput
+              style={styles.input}
+              value={form.expiry}
+              onChangeText={(value) => updateField('expiry', value)}
+              placeholder="YYYY-MM-DD"
+              keyboardType="numeric"
+            />
+          </View>
+
           <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
             <Text style={styles.primaryButtonText}>Next</Text>
           </TouchableOpacity>
@@ -140,13 +214,47 @@ export default function CreateDonationScreen() {
       {step === 2 && (
         <View>
           <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Pickup date</Text>
+            <View style={styles.optionWrap}>
+              {dateOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.optionChip, form.pickupDate === option && styles.optionChipActive]}
+                  onPress={() => updateField('pickupDate', option)}
+                >
+                  <Text style={[styles.optionText, form.pickupDate === option && styles.optionTextActive]}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={[styles.input, styles.marginTop]}
+              value={form.pickupDate !== 'Today' && form.pickupDate !== 'Tomorrow' && form.pickupDate !== 'This weekend' ? form.pickupDate : ''}
+              onChangeText={(value) => updateField('pickupDate', value || 'Today')}
+              placeholder="Or enter custom date (YYYY-MM-DD)"
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
             <Text style={styles.label}>Pickup location</Text>
-            <TextInput style={styles.input} value={form.pickupLocation} onChangeText={(value) => updateField('pickupLocation', value)} />
+            <TouchableOpacity style={styles.locationButton} onPress={handleUseCurrentLocation} disabled={locating}>
+              <Text style={styles.locationButtonText}>{locating ? 'Fetching location...' : 'Use my current location'}</Text>
+            </TouchableOpacity>
+            <TextInput
+              style={[styles.input, styles.marginTop]}
+              value={form.pickupLocation}
+              onChangeText={(value) => updateField('pickupLocation', value)}
+              placeholder="Enter pickup address or venue"
+            />
           </View>
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Pickup availability</Text>
-            <TextInput style={styles.input} value={form.pickupAvailability} onChangeText={(value) => updateField('pickupAvailability', value)} placeholder="Today, 6:00 PM" />
+            <TextInput
+              style={styles.input}
+              value={form.pickupAvailability}
+              onChangeText={(value) => updateField('pickupAvailability', value)}
+              placeholder="Today, 6:00 PM"
+            />
           </View>
 
           <View style={styles.fieldGroup}>
@@ -204,7 +312,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1.2,
@@ -240,6 +348,40 @@ const styles = StyleSheet.create({
   segmentTextActive: {
     color: GREEN,
   },
+  optionWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionChip: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  optionChipActive: {
+    backgroundColor: '#E8F5EE',
+  },
+  optionText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  optionTextActive: {
+    color: GREEN,
+  },
+  locationButton: {
+    backgroundColor: '#E8F5EE',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationButtonText: {
+    color: GREEN,
+    fontWeight: '700',
+  },
   primaryButton: {
     backgroundColor: GREEN,
     borderRadius: 12,
@@ -268,5 +410,8 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  marginTop: {
+    marginTop: 10,
   },
 });
