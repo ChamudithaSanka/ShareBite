@@ -1,28 +1,84 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { donationService } from '../../services/donationService';
 
 export default function DonorHomeScreen() {
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
+  const [donations, setDonations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDonations = async () => {
+      if (!user?.uid) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const data = await donationService.getDonationsByDonor(user.uid);
+        setDonations(data);
+      } catch (error) {
+        console.error('Failed to fetch donor donations:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDonations();
+  }, [user]);
+
+  const activeCount = donations.filter((item) => item.status === 'available' || item.status === 'pending_review').length;
+  const totalCount = donations.length;
   const name = userProfile?.name || 'Donor';
-  const role = userProfile?.role || 'donor';
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.eyebrow}>Donor</Text>
       <Text style={styles.title}>Welcome, {name}</Text>
-      <Text style={styles.role}>Role: {role}</Text>
-    </View>
+      <Text style={styles.role}>Role: {userProfile?.role || 'donor'}</Text>
+
+      <View style={styles.statsRow}>
+        <View style={[styles.statCard, styles.greenCard]}>
+          <Text style={styles.statValue}>{loading ? '—' : activeCount}</Text>
+          <Text style={styles.statLabel}>Active</Text>
+        </View>
+        <View style={[styles.statCard, styles.amberCard]}>
+          <Text style={styles.statValue}>{loading ? '—' : totalCount}</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Recent donations</Text>
+        {loading ? (
+          <ActivityIndicator size="small" color="#1A7A4A" />
+        ) : donations.length === 0 ? (
+          <Text style={styles.emptyText}>No donations yet. Create your first one.</Text>
+        ) : (
+          donations.slice(0, 3).map((item) => (
+            <View key={item.id} style={styles.listItem}>
+              <View>
+                <Text style={styles.itemName}>{item.foodName}</Text>
+                <Text style={styles.itemMeta}>{item.quantity} • {item.foodType}</Text>
+              </View>
+              <Text style={styles.itemStatus}>{item.status}</Text>
+            </View>
+          ))
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#fff',
+  },
+  content: {
     padding: 24,
+    paddingTop: 32,
   },
   eyebrow: {
     fontSize: 12,
@@ -30,18 +86,91 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textTransform: 'uppercase',
     letterSpacing: 0.08,
-    marginBottom: 8,
   },
   title: {
     fontSize: 26,
     fontWeight: '800',
     color: '#111827',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginTop: 8,
   },
   role: {
     fontSize: 16,
     color: '#4B5563',
     textTransform: 'capitalize',
+    marginTop: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+  },
+  greenCard: {
+    backgroundColor: '#E8F5EE',
+    borderColor: '#C3E8D4',
+  },
+  amberCard: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1A7A4A',
+  },
+  statLabel: {
+    marginTop: 6,
+    fontSize: 11,
+    color: '#4B5563',
+    textTransform: 'uppercase',
+    letterSpacing: 0.05,
+    fontWeight: '700',
+  },
+  card: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  itemName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  itemMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  itemStatus: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1A7A4A',
+    textTransform: 'capitalize',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#6B7280',
   },
 });
