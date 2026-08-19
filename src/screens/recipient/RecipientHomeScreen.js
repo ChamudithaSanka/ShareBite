@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, ScrollView, StyleSheet,
+  ActivityIndicator, Image, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
@@ -47,7 +47,9 @@ function FoodCard({ item, onPress }) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.cardBanner}>
-        <Text style={styles.cardEmoji}>{getEmoji(item)}</Text>
+        {item.photoUrl
+          ? <Image source={{ uri: item.photoUrl }} style={styles.cardImage} />
+          : <Text style={styles.cardEmoji}>{getEmoji(item)}</Text>}
         <View style={styles.cardBadgeTop}>
           <Badge label={isRte ? '🟢 Ready-to-Eat' : '📦 Storable'} color={isRte ? 'green' : 'amber'} />
         </View>
@@ -181,6 +183,7 @@ const styles = StyleSheet.create({
     height: 120, backgroundColor: C.greenPale,
     alignItems: 'center', justifyContent: 'center',
   },
+  cardImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   cardEmoji: { fontSize: 48 },
   cardBadgeTop: { position: 'absolute', top: 10, left: 10 },
   distancePill: {

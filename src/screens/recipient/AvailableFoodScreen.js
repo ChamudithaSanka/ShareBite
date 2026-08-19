@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, StyleSheet, Text,
+  ActivityIndicator, FlatList, Image, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import * as Location from 'expo-location';
@@ -48,7 +48,9 @@ function FoodCard({ item, distance, onPress }) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.cardBanner}>
-        <Text style={styles.cardEmoji}>{getEmoji(item)}</Text>
+        {item.photoUrl
+          ? <Image source={{ uri: item.photoUrl }} style={styles.cardImage} />
+          : <Text style={styles.cardEmoji}>{getEmoji(item)}</Text>}
         <View style={{ position: 'absolute', top: 10, left: 10 }}>
           <Badge label={isRte ? '🟢 Ready-to-Eat' : '📦 Storable'} color={isRte ? 'green' : 'amber'} />
         </View>
@@ -191,6 +193,7 @@ const styles = StyleSheet.create({
     height: 120, backgroundColor: C.greenPale,
     alignItems: 'center', justifyContent: 'center',
   },
+  cardImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   cardEmoji: { fontSize: 48 },
   distancePill: {
     position: 'absolute', top: 10, right: 10,

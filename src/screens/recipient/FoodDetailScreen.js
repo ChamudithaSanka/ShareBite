@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, ScrollView, StyleSheet, Text,
+  ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import * as Location from 'expo-location';
@@ -147,7 +147,9 @@ export default function FoodDetailScreen({ route, navigation }) {
     <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: 40 }}>
       {/* Banner */}
       <View style={styles.banner}>
-        <Text style={styles.bannerEmoji}>{getEmoji(donation)}</Text>
+        {donation.photoUrl
+          ? <Image source={{ uri: donation.photoUrl }} style={styles.bannerImage} />
+          : <Text style={styles.bannerEmoji}>{getEmoji(donation)}</Text>}
       </View>
 
       <View style={styles.body}>
@@ -220,7 +222,9 @@ const styles = StyleSheet.create({
     backgroundColor: C.greenPale,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  bannerImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   bannerEmoji: { fontSize: 80 },
   body: { padding: 20 },
   titleRow: {
