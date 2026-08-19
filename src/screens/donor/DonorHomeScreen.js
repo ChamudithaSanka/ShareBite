@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { donationService } from '../../services/donationService';
 
@@ -10,28 +10,39 @@ export default function DonorHomeScreen() {
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchDonations = async () => {
-      if (!user?.uid) {
-        setLoading(false);
-        return;
-      }
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
 
-      try {
-        const data = await donationService.getDonationsByDonor(user.uid);
-        setDonations(data);
-      } catch (error) {
-        console.error('Failed to fetch donor donations:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const fetchDonations = async () => {
+        if (!user?.uid) {
+          if (isActive) setLoading(false);
+          return;
+        }
 
-    fetchDonations();
-  }, [user]);
+        if (isActive) setLoading(true);
+
+        try {
+          const data = await donationService.getDonationsByDonor(user.uid);
+          if (isActive) setDonations(data);
+        } catch (error) {
+          console.error('Failed to fetch donor donations:', error);
+        } finally {
+          if (isActive) setLoading(false);
+        }
+      };
+
+      fetchDonations();
+
+      return () => {
+        isActive = false;
+      };
+    }, [user])
+  );
 
   const activeCount = donations.filter((item) => item.status === 'available' || item.status === 'pending_review').length;
   const totalCount = donations.length;
+  const mealsShared = donations.reduce((total, item) => total + (Number.parseInt(item.quantity, 10) || 0), 0);
   const name = userProfile?.name || 'Donor';
 
   return (
@@ -49,6 +60,10 @@ export default function DonorHomeScreen() {
           <Text style={styles.statValue}>{loading ? '—' : totalCount}</Text>
           <Text style={styles.statLabel}>Total</Text>
         </View>
+        <View style={[styles.statCard, styles.blueCard]}>
+          <Text style={[styles.statValue, styles.blueValue]}>{loading ? '—' : mealsShared}</Text>
+          <Text style={styles.statLabel}>Meals shared</Text>
+        </View>
       </View>
 
       <View style={styles.card}>
@@ -64,6 +79,7 @@ export default function DonorHomeScreen() {
               style={styles.listItem}
               onPress={() => navigation.navigate('DonationDetail', { donation: item })}
             >
+              {item.photoUrl ? <Image source={{ uri: item.photoUrl }} style={styles.itemImage} /> : <View style={styles.itemImagePlaceholder}><Text style={styles.placeholderEmoji}>🍱</Text></View>}
               <View>
                 <Text style={styles.itemName}>{item.foodName}</Text>
                 <Text style={styles.itemMeta}>{item.quantity} • {item.foodType}</Text>
@@ -125,6 +141,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     borderColor: '#FDE68A',
   },
+  blueCard: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
   statValue: {
     fontSize: 28,
     fontWeight: '800',
@@ -137,6 +157,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.05,
     fontWeight: '700',
+  },
+  blueValue: {
+    color: '#2563EB',
   },
   card: {
     backgroundColor: '#F9FAFB',
@@ -158,6 +181,24 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+  },
+  itemImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  itemImagePlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    marginRight: 12,
+    backgroundColor: '#E8F5EE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderEmoji: {
+    fontSize: 22,
   },
   itemName: {
     fontSize: 15,

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { donationService } from '../../services/donationService';
 
@@ -10,25 +10,35 @@ export default function ManageDonationsScreen() {
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadDonations = async () => {
-      if (!user?.uid) {
-        setLoading(false);
-        return;
-      }
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
 
-      try {
-        const data = await donationService.getDonationsByDonor(user.uid);
-        setDonations(data);
-      } catch (error) {
-        console.error('Failed to load donor donations:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const loadDonations = async () => {
+        if (!user?.uid) {
+          if (isActive) setLoading(false);
+          return;
+        }
 
-    loadDonations();
-  }, [user]);
+        if (isActive) setLoading(true);
+
+        try {
+          const data = await donationService.getDonationsByDonor(user.uid);
+          if (isActive) setDonations(data);
+        } catch (error) {
+          console.error('Failed to load donor donations:', error);
+        } finally {
+          if (isActive) setLoading(false);
+        }
+      };
+
+      loadDonations();
+
+      return () => {
+        isActive = false;
+      };
+    }, [user])
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -47,6 +57,7 @@ export default function ManageDonationsScreen() {
             style={styles.card}
             onPress={() => navigation.navigate('DonationDetail', { donation: item })}
           >
+            {item.photoUrl ? <Image source={{ uri: item.photoUrl }} style={styles.itemImage} /> : <View style={styles.itemImagePlaceholder}><Text style={styles.placeholderEmoji}>🍱</Text></View>}
             <View style={styles.row}>
               <Text style={styles.foodName}>{item.foodName}</Text>
               <Text style={styles.status}>{item.status}</Text>
@@ -88,6 +99,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  itemImage: {
+    width: '100%',
+    height: 130,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  itemImagePlaceholder: {
+    width: '100%',
+    height: 90,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: '#E8F5EE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderEmoji: {
+    fontSize: 38,
   },
   foodName: {
     fontSize: 17,
