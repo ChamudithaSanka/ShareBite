@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { donationService } from '../../services/donationService';
 
@@ -67,6 +67,17 @@ export default function DonationDetailScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.eyebrow}>Donation details</Text>
       <Text style={styles.title}>{donation.foodName || 'Food donation'}</Text>
+
+      {donation.photoUrl ? <Image source={{ uri: donation.photoUrl }} style={styles.heroImage} /> : <View style={styles.heroPlaceholder}><Text style={styles.heroEmoji}>🍱</Text></View>}
+
+      <View style={styles.tracker}>
+        {['Posted', 'Matched', 'Picked up', 'Delivered'].map((label, index) => (
+          <View key={label} style={styles.trackerStep}>
+            <View style={[styles.trackerDot, index <= (donation.status === 'picked_up' ? 2 : donation.status === 'reserved' ? 1 : 0) && styles.trackerDotActive]}><Text style={styles.trackerDotText}>{index < 1 ? '✓' : index + 1}</Text></View>
+            <Text style={styles.trackerLabel}>{label}</Text>
+          </View>
+        ))}
+      </View>
 
       <View style={styles.card}>
         <View style={styles.row}>
@@ -145,6 +156,55 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginTop: 6,
     marginBottom: 18,
+  },
+  heroImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 18,
+    marginBottom: 16,
+  },
+  heroPlaceholder: {
+    width: '100%',
+    height: 180,
+    borderRadius: 18,
+    marginBottom: 16,
+    backgroundColor: '#E8F5EE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroEmoji: {
+    fontSize: 72,
+  },
+  tracker: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  trackerStep: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  trackerDot: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  trackerDotActive: {
+    backgroundColor: '#1A7A4A',
+  },
+  trackerDotText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  trackerLabel: {
+    color: '#6B7280',
+    fontSize: 10,
+    textAlign: 'center',
   },
   card: {
     backgroundColor: '#F9FAFB',
