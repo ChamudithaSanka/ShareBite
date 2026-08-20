@@ -29,9 +29,9 @@ function ComingSoonScreen({ route }) {
   );
 }
 
-function AuthStack() {
+function AuthStack({ initialRouteName = 'Splash' }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Onboard" component={OnboardScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
@@ -58,7 +58,7 @@ function RoleNavigator({ role }) {
 }
 
 export default function AppNavigator() {
-  const { user, userProfile, loading } = useAuth();
+  const { user, userProfile, loading, signedOut } = useAuth();
 
   if (loading) {
     return (
@@ -71,7 +71,7 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       {!user || !userProfile
-        ? <AuthStack />
+        ? <AuthStack initialRouteName={signedOut ? 'Login' : 'Splash'} />
         : <RoleNavigator role={userProfile.role} />}
     </NavigationContainer>
   );
