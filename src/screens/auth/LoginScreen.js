@@ -41,7 +41,7 @@ export default function LoginScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Image
-            source={require('../../../assets/login.png')}
+            source={require('../../../assets/splash.png')}
             style={styles.logo}
             contentFit="contain"
             cachePolicy="memory-disk"
