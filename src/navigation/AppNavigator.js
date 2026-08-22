@@ -38,6 +38,8 @@ function AuthStack() {
   );
 }
 
+import CoordinatorNavigator from './CoordinatorNavigator';
+
 function RoleNavigator({ role }) {
   switch (role) {
     case 'recipient':
@@ -47,7 +49,7 @@ function RoleNavigator({ role }) {
     case 'volunteer':
       return <VolunteerNavigator />;
     case 'coordinator':
-      return <ComingSoonScreen route={{ params: { role: 'Coordinator' } }} />;
+      return <CoordinatorNavigator />;
     default:
       return <ComingSoonScreen route={{ params: { role: 'Unknown' } }} />;
   }
