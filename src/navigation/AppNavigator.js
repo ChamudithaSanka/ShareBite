@@ -10,8 +10,9 @@ import OnboardScreen from '../screens/auth/OnboardScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 
-// Recipient navigator (implemented)
+// Role navigators
 import RecipientNavigator from './RecipientNavigator';
+import DonorNavigator from './DonorNavigator';
 import VolunteerNavigator from './VolunteerNavigator';
 
 const Stack = createStackNavigator();
@@ -39,16 +40,18 @@ function AuthStack() {
   );
 }
 
+import CoordinatorNavigator from './CoordinatorNavigator';
+
 function RoleNavigator({ role }) {
   switch (role) {
     case 'recipient':
       return <RecipientNavigator />;
     case 'donor':
-      return <ComingSoonScreen route={{ params: { role: 'Donor' } }} />;
+      return <DonorNavigator />;
     case 'volunteer':
       return <VolunteerNavigator />;
     case 'coordinator':
-      return <ComingSoonScreen route={{ params: { role: 'Coordinator' } }} />;
+      return <CoordinatorNavigator />;
     default:
       return <ComingSoonScreen route={{ params: { role: 'Unknown' } }} />;
   }
