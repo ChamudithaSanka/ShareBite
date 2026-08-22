@@ -2,7 +2,7 @@ import React from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
 } from 'react-native';
-import { Image } from 'react-native';
+import { Image } from 'expo-image';
 import { useFonts } from 'expo-font';
 
 export default function OnboardScreen({ navigation }) {
@@ -10,17 +10,19 @@ export default function OnboardScreen({ navigation }) {
     BilderbergItalic: require('../../../assets/Bilderberg Italic OTF.otf'),
   });
 
-  if (!fontsLoaded) {
-    return null;
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.hero}>
         <View style={styles.iconBox}>
-          <Image source={require('../../../assets/onboard.png')} style={styles.logo} resizeMode="contain" />
+          <Image
+            source={require('../../../assets/onboard.png')}
+            style={styles.logo}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            transition={0}
+          />
         </View>
-        <Text style={styles.appName}>
+        <Text style={[styles.appName, fontsLoaded && styles.customAppName]}>
           Share<Text style={styles.biteAccent}>Bite</Text>
         </Text>
         <Text style={styles.tagline}>
@@ -77,10 +79,12 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 36,
     fontWeight: '700',
-    fontFamily: 'BilderbergItalic',
     color: '#1A7A4A',
     letterSpacing: 2,
     marginBottom: -20,
+  },
+  customAppName: {
+    fontFamily: 'BilderbergItalic',
   },
   biteAccent: {
     color: '#FBBF24',
