@@ -1,5 +1,5 @@
 import {
-  addDoc, collection, onSnapshot, query, serverTimestamp, where,
+  collection, doc, onSnapshot, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -11,10 +11,22 @@ export const createFoodRequest = async ({
   deliveryCoordinates = null,
   preferredTime = '',
   notes = '',
+  foodName = 'Food donation',
+  donorId = null,
+  donorName = '',
+  recipientName = '',
+  pickupLocation = '',
+  pickupCoordinates = null,
+  distance = '',
 }) => {
-  const request = await addDoc(collection(db, 'requests'), {
+  const batch = writeBatch(db);
+  const requestRef = doc(collection(db, 'requests'));
+  const deliveryRef = doc(collection(db, 'deliveries'));
+
+  batch.set(requestRef, {
     donationId,
     recipientId,
+    recipientName,
     status: 'pending',
     quantity,
     coordinatorApproved: false,
@@ -25,7 +37,27 @@ export const createFoodRequest = async ({
     createdAt: serverTimestamp(),
   });
 
-  return request.id;
+  batch.set(deliveryRef, {
+    requestId: requestRef.id,
+    donationId,
+    donorId,
+    donorName,
+    recipientId,
+    recipientName,
+    status: 'pending',
+    foodName,
+    quantity,
+    pickupLocation,
+    pickupCoordinates,
+    deliveryAddress,
+    deliveryCoordinates,
+    distance,
+    preferredTime,
+    createdAt: serverTimestamp(),
+  });
+
+  await batch.commit();
+  return requestRef.id;
 };
 
 export const subscribeToRecipientRequests = (recipientId, onData, onError) => {

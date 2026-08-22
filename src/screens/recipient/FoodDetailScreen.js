@@ -11,7 +11,7 @@ import { createFoodRequest } from '../../services/requestService';
 const GREEN = '#1A7A4A';
 
 export default function FoodDetailScreen({ route, navigation }) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [donation, setDonation] = useState(route.params?.donation || null);
   const [quantity, setQuantity] = useState(route.params?.donation?.quantity || '');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -80,8 +80,18 @@ export default function FoodDetailScreen({ route, navigation }) {
         quantity: quantity.trim(),
         deliveryAddress: deliveryAddress.trim(),
         deliveryCoordinates,
+        foodName: donation.foodName,
+        donorId: donation.donorId || null,
+        donorName: donation.donorName || '',
+        pickupLocation: donation.pickupLocation || '',
+        pickupCoordinates: donation.pickupCoordinates || {
+          latitude: donation.pickupLatitude || null,
+          longitude: donation.pickupLongitude || null,
+        },
+        distance: donation.distance || '',
+        recipientName: userProfile?.name || '',
       });
-      Alert.alert('Request submitted', 'Your food request is pending approval.', [
+      Alert.alert('Request submitted', 'Your request is now available for a volunteer to accept.', [
         { text: 'View requests', onPress: () => navigation.navigate('Requests') },
       ]);
     } catch (error) {
