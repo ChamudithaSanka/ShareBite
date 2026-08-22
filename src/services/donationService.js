@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   serverTimestamp,
   updateDoc,
@@ -13,6 +14,18 @@ import {
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { db } from '../config/firebase';
 import { storage } from '../config/firebase';
+
+const subscribeToAvailableDonations = (onData, onError) => {
+  const donationsQuery = query(collection(db, 'donations'), where('status', '==', 'available'));
+
+  return onSnapshot(
+    donationsQuery,
+    (snapshot) => {
+      onData(snapshot.docs.map((donation) => ({ id: donation.id, ...donation.data() })));
+    },
+    onError,
+  );
+};
 
 export const donationService = {
   async getDonationsByDonor(donorId) {
@@ -71,6 +84,9 @@ export const donationService = {
     const ref = doc(db, 'donations', donationId);
     await deleteDoc(ref);
   },
+  subscribeToAvailableDonations,
 };
+
+export { subscribeToAvailableDonations };
 
 export default donationService;
