@@ -12,20 +12,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { acceptDonation, declineDonation } from '../../services/coordinatorService';
+import { approveRequest, declineRequest } from '../../services/coordinatorService';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  green:      '#1A7A4A',
-  greenLight: '#E8F5EE',
-  greenBg:    '#F0FAF4',
-  greenBorder:'#A7F3C6',
-  amber:      '#D97706',
-  amberLight: '#FEF3C7',
-  amberBorder:'#FDE68A',
   blue:       '#2563EB',
   blueLight:  '#EFF6FF',
+  blueBg:     '#F0F7FF',
   blueBorder: '#BFDBFE',
+  green:      '#1A7A4A',
+  greenLight: '#E8F5EE',
   red:        '#B42318',
   redLight:   '#FDECEC',
   redBorder:  '#FECACA',
@@ -59,13 +55,13 @@ function InfoRow({ label, value, last }) {
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
-export default function DonationReviewDetailScreen() {
+export default function RequestDetailScreen() {
   const navigation  = useNavigation();
   const route       = useRoute();
-  const donation    = route.params?.donation;
+  const requestItem = route.params?.request;
 
   const [submitting, setSubmitting] = useState(false);
-  const [decision,   setDecision]   = useState(null); // 'accepted' | 'declined'
+  const [decision,   setDecision]   = useState(null); // 'approved' | 'declined'
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const confirm = (title, message, onConfirm, destructive = false) =>
@@ -74,38 +70,38 @@ export default function DonationReviewDetailScreen() {
       { text: title, style: destructive ? 'destructive' : 'default', onPress: onConfirm },
     ]);
 
-  const handleAccept = () =>
+  const handleApprove = () =>
     confirm(
-      'Accept Donation',
-      `Accept "${donation?.foodName}"? It will become available for delivery.`,
+      'Approve Request',
+      `Approve request from "${requestItem?.recipientName}"? It will become available for delivery.`,
       async () => {
         setSubmitting(true);
-        try   { await acceptDonation(donation.id); setDecision('accepted'); }
-        catch { Alert.alert('Error', 'Could not accept this donation.'); }
+        try   { await approveRequest(requestItem.id); setDecision('approved'); }
+        catch { Alert.alert('Error', 'Could not approve this request.'); }
         finally { setSubmitting(false); }
       },
     );
 
   const handleDecline = () =>
     confirm(
-      'Decline Donation',
-      `Decline "${donation?.foodName}"? The donor will see this status.`,
+      'Decline Request',
+      `Decline request from "${requestItem?.recipientName}"? The recipient will be notified.`,
       async () => {
         setSubmitting(true);
-        try   { await declineDonation(donation.id); setDecision('declined'); }
-        catch { Alert.alert('Error', 'Could not decline this donation.'); }
+        try   { await declineRequest(requestItem.id); setDecision('declined'); }
+        catch { Alert.alert('Error', 'Could not decline this request.'); }
         finally { setSubmitting(false); }
       },
       true,
     );
 
   // ── Not found ─────────────────────────────────────────────────────────────
-  if (!donation) {
+  if (!requestItem) {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.centered}>
           <Text style={{ fontSize: 40, marginBottom: 12 }}>🔍</Text>
-          <Text style={s.notFoundText}>Donation not found.</Text>
+          <Text style={s.notFoundText}>Request not found.</Text>
           <TouchableOpacity style={s.backPill} onPress={() => navigation.goBack()}>
             <Text style={s.backPillText}>Go back</Text>
           </TouchableOpacity>
@@ -116,28 +112,28 @@ export default function DonationReviewDetailScreen() {
 
   // ── Decision confirmed ────────────────────────────────────────────────────
   if (decision) {
-    const accepted = decision === 'accepted';
+    const approved = decision === 'approved';
     return (
       <SafeAreaView style={s.safe}>
         <StatusBar barStyle="dark-content" backgroundColor={C.white} />
         <View style={s.centered}>
-          <View style={[s.resultIconWrap, { backgroundColor: accepted ? C.greenLight : C.redLight }]}>
-            <Text style={{ fontSize: 44 }}>{accepted ? '✅' : '❌'}</Text>
+          <View style={[s.resultIconWrap, { backgroundColor: approved ? C.blueLight : C.redLight }]}>
+            <Text style={{ fontSize: 44 }}>{approved ? '✅' : '❌'}</Text>
           </View>
           <Text style={s.resultTitle}>
-            {accepted ? 'Donation Accepted!' : 'Donation Declined'}
+            {approved ? 'Request Approved!' : 'Request Declined'}
           </Text>
           <Text style={s.resultSub}>
-            {accepted
-              ? 'The donation is now available. A volunteer can pick it up for delivery.'
-              : 'The donation has been marked as declined.'}
+            {approved
+              ? 'The request is now approved. A volunteer can be assigned for delivery.'
+              : 'The request has been marked as declined.'}
           </Text>
           <TouchableOpacity
-            style={[s.resultBtn, { backgroundColor: accepted ? C.green : C.gray100 }]}
+            style={[s.resultBtn, { backgroundColor: approved ? C.blue : C.gray100 }]}
             onPress={() => navigation.goBack()}
           >
-            <Text style={[s.resultBtnText, { color: accepted ? C.white : C.gray700 }]}>
-              Back to Donations
+            <Text style={[s.resultBtnText, { color: approved ? C.white : C.gray700 }]}>
+              Back to Requests
             </Text>
           </TouchableOpacity>
         </View>
@@ -147,15 +143,13 @@ export default function DonationReviewDetailScreen() {
 
   // ── Main detail view ──────────────────────────────────────────────────────
   const infoRows = [
-    { label: 'Quantity',           value: donation.quantity },
-    { label: 'Category',           value: donation.category },
-    { label: 'Condition',          value: donation.condition },
-    { label: 'Food type',          value: donation.foodType },
-    { label: 'Expiry date',        value: donation.expiry },
-    { label: 'Pickup location',    value: donation.pickupLocation },
-    { label: 'Pickup availability',value: donation.pickupAvailability },
-    { label: 'Notes',              value: donation.notes || 'None' },
-    { label: 'Submitted',          value: fmtDate(donation.createdAt) },
+    { label: 'Recipient Name',     value: requestItem.recipientName },
+    { label: 'Food Requested',     value: requestItem.foodName },
+    { label: 'Quantity',           value: requestItem.quantity },
+    { label: 'Delivery Address',   value: requestItem.deliveryAddress },
+    { label: 'Contact',            value: requestItem.contactNumber },
+    { label: 'Notes',              value: requestItem.notes || 'None' },
+    { label: 'Requested On',       value: fmtDate(requestItem.createdAt) },
   ];
 
   return (
@@ -169,31 +163,28 @@ export default function DonationReviewDetailScreen() {
         {/* ── Back button ── */}
         <TouchableOpacity style={s.backRow} onPress={() => navigation.goBack()}>
           <Text style={s.backArrow}>‹</Text>
-          <Text style={s.backText}>Pending Donations</Text>
+          <Text style={s.backText}>Pending Requests</Text>
         </TouchableOpacity>
 
         {/* ── Hero section ── */}
         <View style={s.hero}>
           <View style={s.heroIcon}>
-            <Text style={{ fontSize: 56 }}>📦</Text>
+            <Text style={{ fontSize: 56 }}>📋</Text>
           </View>
           <View style={s.heroMeta}>
             <Text style={s.heroTitle} numberOfLines={2}>
-              {donation.foodName || 'Unnamed donation'}
+              {requestItem.foodName || 'Food Request'}
             </Text>
             <View style={s.badgeRow}>
-              <View style={[s.badge, { backgroundColor: C.amberLight, borderColor: C.amberBorder }]}>
-                <Text style={[s.badgeText, { color: C.amber }]}>⏳ Pending Review</Text>
-              </View>
               <View style={[s.badge, { backgroundColor: C.blueLight, borderColor: C.blueBorder }]}>
-                <Text style={[s.badgeText, { color: C.blue }]}>📦 Storable</Text>
+                <Text style={[s.badgeText, { color: C.blue }]}>⏳ Pending Approval</Text>
               </View>
             </View>
           </View>
         </View>
 
         {/* ── Info table ── */}
-        <Text style={s.sectionLabel}>DONATION DETAILS</Text>
+        <Text style={s.sectionLabel}>REQUEST DETAILS</Text>
         <View style={s.infoCard}>
           {infoRows.map((row, i) => (
             <InfoRow
@@ -209,26 +200,26 @@ export default function DonationReviewDetailScreen() {
         <Text style={s.sectionLabel}>YOUR DECISION</Text>
         <View style={s.decisionHint}>
           <Text style={s.decisionHintText}>
-            ℹ Accepting will make this donation available for volunteer pickup. Declining removes it from the queue.
+            ℹ Approving will allow volunteers to pick up and deliver this request. Declining will reject the request.
           </Text>
         </View>
 
         {submitting ? (
-          <ActivityIndicator color={C.green} style={{ marginVertical: 20 }} size="large" />
+          <ActivityIndicator color={C.blue} style={{ marginVertical: 20 }} size="large" />
         ) : (
           <View style={s.btnRow}>
-            <TouchableOpacity style={[s.btn, s.acceptBtn]} onPress={handleAccept} activeOpacity={0.8}>
+            <TouchableOpacity style={[s.btn, s.acceptBtn]} onPress={handleApprove} activeOpacity={0.8}>
               <Text style={s.acceptIcon}>✅</Text>
               <View>
-                <Text style={s.acceptLabel}>Accept</Text>
-                <Text style={s.acceptSub}>Make available</Text>
+                <Text style={s.acceptLabel}>Approve</Text>
+                <Text style={s.acceptSub}>Allow delivery</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity style={[s.btn, s.declineBtn]} onPress={handleDecline} activeOpacity={0.8}>
               <Text style={s.declineIcon}>❌</Text>
               <View>
                 <Text style={s.declineLabel}>Decline</Text>
-                <Text style={s.declineSub}>Remove from queue</Text>
+                <Text style={s.declineSub}>Reject request</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -259,7 +250,7 @@ const s = StyleSheet.create({
   },
   heroIcon: {
     width: 76, height: 76, borderRadius: 16,
-    backgroundColor: C.amberLight,
+    backgroundColor: C.blueLight,
     alignItems: 'center', justifyContent: 'center',
   },
   heroMeta:  { flex: 1 },
@@ -295,11 +286,11 @@ const s = StyleSheet.create({
 
   // Decision hint
   decisionHint: {
-    backgroundColor: C.blueLight, borderRadius: 12,
+    backgroundColor: C.gray100, borderRadius: 12,
     padding: 14, marginBottom: 16,
-    borderWidth: 1, borderColor: C.blueBorder,
+    borderWidth: 1, borderColor: C.gray200,
   },
-  decisionHintText: { fontSize: 13, color: C.blue, lineHeight: 19 },
+  decisionHintText: { fontSize: 13, color: C.gray700, lineHeight: 19 },
 
   // Buttons
   btnRow: { flexDirection: 'row', gap: 12 },
@@ -312,7 +303,7 @@ const s = StyleSheet.create({
       android: { elevation: 3 },
     }),
   },
-  acceptBtn:   { backgroundColor: C.green,    borderColor: C.green },
+  acceptBtn:   { backgroundColor: C.blue,      borderColor: C.blue },
   declineBtn:  { backgroundColor: C.redLight,  borderColor: C.redBorder },
   acceptIcon:  { fontSize: 22 },
   acceptLabel: { fontSize: 15, fontWeight: '800', color: C.white },
