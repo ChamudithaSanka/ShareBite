@@ -23,7 +23,7 @@ export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState('Recipient');
+  const [selectedRole, setSelectedRole] = useState('Donor');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

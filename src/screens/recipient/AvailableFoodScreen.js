@@ -3,6 +3,7 @@ import {
   ActivityIndicator, FlatList, Image, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { subscribeToAvailableDonations } from '../../services/donationService';
 
@@ -113,7 +114,7 @@ export default function AvailableFoodScreen({ navigation }) {
   });
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Available Food</Text>
@@ -158,7 +159,7 @@ export default function AvailableFoodScreen({ navigation }) {
           />
         )}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

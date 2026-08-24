@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 
 const GREEN = '#1A7A4A';
@@ -75,8 +76,8 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.headerEyebrow}>ACCOUNT</Text>
           <Text style={styles.title}>My profile</Text>
@@ -154,12 +155,13 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
+  scroll: { flex: 1 },
   content: { padding: 20, paddingBottom: 36 },
   header: { marginBottom: 18 },
   headerEyebrow: { color: GREEN, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 5 },
