@@ -3,6 +3,7 @@ import {
   ActivityIndicator, Image, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToAvailableDonations } from '../../services/donationService';
 
@@ -89,17 +90,18 @@ export default function RecipientHomeScreen({ navigation }) {
   const firstName = (userProfile?.name || 'there').split(' ')[0];
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: 32 }}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerGreeting}>Hi there,</Text>
-          <Text style={styles.headerName}>{firstName} 👋</Text>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 32 }}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerGreeting}>Hi there,</Text>
+            <Text style={styles.headerName}>{firstName} 👋</Text>
+          </View>
+          <View style={styles.avatar}>
+            <Text style={{ fontSize: 22 }}>🍽️</Text>
+          </View>
         </View>
-        <View style={styles.avatar}>
-          <Text style={{ fontSize: 22 }}>🍽️</Text>
-        </View>
-      </View>
 
       {/* Banner */}
       <TouchableOpacity
@@ -146,12 +148,14 @@ export default function RecipientHomeScreen({ navigation }) {
       {!loading && !error && donations.length === 0 && (
         <Text style={styles.emptyText}>No donations available right now.</Text>
       )}
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.white },
+  scroll: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
     padding: 20, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: C.gray100,

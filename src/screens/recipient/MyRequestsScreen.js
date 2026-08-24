@@ -3,6 +3,7 @@ import {
   ActivityIndicator, FlatList, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToRecipientRequests } from '../../services/requestService';
 
@@ -58,7 +59,7 @@ export default function MyRequestsScreen({ navigation }) {
   ), [user?.uid]);
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Requests</Text>
@@ -111,7 +112,7 @@ export default function MyRequestsScreen({ navigation }) {
           </TouchableOpacity>
         )}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
