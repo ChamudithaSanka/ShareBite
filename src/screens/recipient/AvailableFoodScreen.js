@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   loader: { marginTop: 28 },
   error: { marginTop: 24, color: '#E05A2B', textAlign: 'center' },
   empty: { marginTop: 28, color: '#6B7280', textAlign: 'center' },
-  list: { paddingTop: 20, paddingBottom: 24 },
+  list: { paddingTop: 20, paddingBottom: 120 },
   card: { padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12 },
   cardTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
   cardText: { marginTop: 6, fontSize: 13, color: '#6B7280' },

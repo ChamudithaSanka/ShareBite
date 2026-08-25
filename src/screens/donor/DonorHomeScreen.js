@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 24,
     paddingTop: 32,
+    paddingBottom: 120,
   },
   eyebrow: {
     fontSize: 12,

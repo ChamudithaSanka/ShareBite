@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Text } from 'react-native';
+import AnimatedTabIcon from '../components/AnimatedTabIcon';
 
 import RecipientHomeScreen from '../screens/recipient/RecipientHomeScreen';
 import AvailableFoodScreen from '../screens/recipient/AvailableFoodScreen';
@@ -52,11 +52,12 @@ function RequestsStackNav() {
 
 // --- Tab Icon helper (no external icon library needed) ---
 const TabIcon = ({ label, focused }) => (
-  <Text style={{ fontSize: 20 }}>
-    {label === 'Home' ? '🏠' :
-     label === 'Browse' ? '🔍' :
-     label === 'Requests' ? '📋' : '👤'}
-  </Text>
+  <AnimatedTabIcon
+    focused={focused}
+    icon={label === 'Home' ? '🏠' :
+      label === 'Browse' ? '🔍' :
+      label === 'Requests' ? '📋' : '👤'}
+  />
 );
 
 // --- Recipient Bottom Tab Navigator ---
@@ -65,13 +66,27 @@ export default function RecipientNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: GREEN,
-        tabBarInactiveTintColor: '#9CA3AF',
+        animation: 'fade',
+        popToTopOnBlur: true,
+        tabBarActiveTintColor: 'blue',
+        tabBarInactiveTintColor: 'black',
         tabBarStyle: {
-          borderTopColor: '#F3F4F6',
-          paddingBottom: 6,
-          paddingTop: 4,
-          height: 60,
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 16,
+          marginHorizontal: 16,
+          height: 68,
+          borderTopWidth: 0,
+          borderRadius: 50,
+          paddingBottom: 8,
+          paddingTop: 8,
+          backgroundColor: '#ffffff',
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.12,
+          shadowRadius: 12,
+          elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: 11,

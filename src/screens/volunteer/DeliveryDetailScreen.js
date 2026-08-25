@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { acceptDelivery, getDeliveryById } from '../../services/deliveryService';
+import { acceptDelivery, subscribeToDelivery } from '../../services/deliveryService';
 
 const GREEN = '#1A7A4A';
 const pickupFor = (delivery) => delivery.pickupLocation || delivery.pickupAddress || 'Pickup location unavailable';
@@ -16,16 +16,15 @@ export default function DeliveryDetailScreen({ route, navigation }) {
   const [accepting, setAccepting] = useState(false);
 
   useEffect(() => {
-    const deliveryId = route.params?.deliveryId;
-    if (!deliveryId || delivery) return undefined;
+    const deliveryId = route.params?.deliveryId || route.params?.delivery?.id;
+    if (!deliveryId) return undefined;
 
-    getDeliveryById(deliveryId)
-      .then(setDelivery)
-      .catch(() => Alert.alert('Error', 'Unable to load this delivery.'))
-      .finally(() => setLoading(false));
-
-    return undefined;
-  }, [delivery, route.params?.deliveryId]);
+    return subscribeToDelivery(
+      deliveryId,
+      (nextDelivery) => { setDelivery(nextDelivery); setLoading(false); },
+      () => { setLoading(false); Alert.alert('Error', 'Unable to watch this delivery.'); },
+    );
+  }, [route.params?.deliveryId, route.params?.delivery?.id]);
 
   const handleAccept = async () => {
     if (!delivery?.id || !user?.uid) return;
@@ -76,7 +75,7 @@ export default function DeliveryDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#fff', padding: 24, paddingBottom: 34 },
+  container: { backgroundColor: '#fff', padding: 24, paddingBottom: 120 },
   eyebrow: { color: GREEN, fontSize: 11, fontWeight: '800', letterSpacing: 1.1, marginTop: 4 },
   title: { color: '#111827', fontSize: 28, fontWeight: '800', marginTop: 6 },
   subtitle: { color: '#6B7280', fontSize: 14, marginTop: 5 },

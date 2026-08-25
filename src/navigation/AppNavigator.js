@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 
 // Auth screens
@@ -72,12 +73,20 @@ export default function AppNavigator() {
     <NavigationContainer>
       {!user || !userProfile
         ? <AuthStack initialRouteName={signedOut ? 'Login' : 'Splash'} />
-        : <RoleNavigator role={userProfile.role} />}
+        : (
+          <SafeAreaView edges={['top']} style={styles.roleSafeArea}>
+            <RoleNavigator role={userProfile.role} />
+          </SafeAreaView>
+        )}
     </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  roleSafeArea: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
   loader: {
     flex: 1,
     justifyContent: 'center',

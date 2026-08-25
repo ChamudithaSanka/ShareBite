@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import { useAuth } from '../../context/AuthContext';
-import { getDonationById } from '../../services/donationService';
+import { subscribeToDonation } from '../../services/donationService';
 import { createFoodRequest } from '../../services/requestService';
 
 const GREEN = '#1A7A4A';
@@ -21,19 +21,15 @@ export default function FoodDetailScreen({ route, navigation }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const donationId = route.params?.donationId;
-    if (!donationId || donation) return undefined;
+    const donationId = route.params?.donationId || route.params?.donation?.id;
+    if (!donationId) return undefined;
 
-    getDonationById(donationId)
-      .then((loadedDonation) => {
-        setDonation(loadedDonation);
-        setQuantity(loadedDonation?.quantity || '');
-      })
-      .catch(() => Alert.alert('Error', 'Unable to load this donation.'))
-      .finally(() => setLoading(false));
-
-    return undefined;
-  }, [donation, route.params?.donationId]);
+    return subscribeToDonation(
+      donationId,
+      (nextDonation) => { setDonation(nextDonation); setLoading(false); },
+      () => { setLoading(false); Alert.alert('Error', 'Unable to watch this donation.'); },
+    );
+  }, [route.params?.donationId, route.params?.donation?.id]);
 
   const useCurrentLocation = async () => {
     setLocationLoading(true);
@@ -141,6 +137,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
+    paddingBottom: 120,
     backgroundColor: '#fff',
   },
   title: { fontSize: 26, fontWeight: '800', color: '#111827', textAlign: 'center' },
