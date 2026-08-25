@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   loader: { marginTop: 24 },
   error: { marginTop: 24, color: '#E05A2B', textAlign: 'center' },
   empty: { marginTop: 24, color: '#6B7280', textAlign: 'center' },
-  list: { width: '100%', paddingTop: 24 },
+  list: { width: '100%', paddingTop: 24, paddingBottom: 120 },
   card: { padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
   cardText: { marginTop: 6, color: '#6B7280', fontSize: 13 },

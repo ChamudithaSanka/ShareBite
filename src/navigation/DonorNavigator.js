@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Text } from 'react-native';
+import AnimatedTabIcon from '../components/AnimatedTabIcon';
 
 import DonorHomeScreen from '../screens/donor/DonorHomeScreen';
 import ManageDonationsScreen from '../screens/donor/ManageDonationsScreen';
@@ -44,10 +44,11 @@ function CreateStackNav() {
   );
 }
 
-const TabIcon = ({ label }) => (
-  <Text style={{ fontSize: 20 }}>
-    {label === 'Home' ? '🏠' : label === 'Donations' ? '📦' : label === 'Create' ? '➕' : '👤'}
-  </Text>
+const TabIcon = ({ label, focused }) => (
+  <AnimatedTabIcon
+    focused={focused}
+    icon={label === 'Home' ? '🏠' : label === 'Donations' ? '📦' : label === 'Create' ? '➕' : '👤'}
+  />
 );
 
 export default function DonorNavigator() {
@@ -55,19 +56,33 @@ export default function DonorNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: GREEN,
-        tabBarInactiveTintColor: '#9CA3AF',
+        animation: 'fade',
+        popToTopOnBlur: true,
+        tabBarActiveTintColor: 'blue',
+        tabBarInactiveTintColor: 'black',
         tabBarStyle: {
-          borderTopColor: '#F3F4F6',
-          paddingBottom: 6,
-          paddingTop: 4,
-          height: 60,
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 16,
+          marginHorizontal: 16,
+          height: 68,
+          borderTopWidth: 0,
+          borderRadius: 50,
+          paddingBottom: 8,
+          paddingTop: 8,
+          backgroundColor: '#ffffff',
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.12,
+          shadowRadius: 12,
+          elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
         },
-        tabBarIcon: () => <TabIcon label={route.name} />,
+        tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
       })}
     >
       <Tab.Screen name="Home" component={HomeStackNav} />

@@ -35,6 +35,14 @@ export const getDeliveryById = async (deliveryId) => {
   return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
 };
 
+export const subscribeToDelivery = (deliveryId, onData, onError) => {
+  if (!deliveryId) return () => {};
+
+  return onSnapshot(doc(db, 'deliveries', deliveryId), (snapshot) => {
+    onData(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null);
+  }, onError);
+};
+
 export const acceptDelivery = async (deliveryId, volunteerId) => {
   if (!deliveryId || !volunteerId) throw new Error('Missing delivery or volunteer.');
 
@@ -82,6 +90,7 @@ export const deliveryService = {
   subscribeToAvailableDeliveries,
   subscribeToVolunteerDeliveries,
   getDeliveryById,
+  subscribeToDelivery,
   acceptDelivery,
   updateDeliveryStatus,
 };

@@ -1,24 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { donationService } from '../../services/donationService';
+import { donationService, subscribeToDonation } from '../../services/donationService';
 
 export default function DonationDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const donationFromParams = route.params?.donation;
   const [donation, setDonation] = useState(donationFromParams || null);
+  const donationId = donationFromParams?.id || route.params?.donationId;
 
   useEffect(() => {
-    const loadDonation = async () => {
-      if (!donationFromParams?.id && route.params?.donationId) {
-        const data = await donationService.getDonationById(route.params.donationId);
-        setDonation(data);
-      }
-    };
+    if (!donationId) return undefined;
 
-    loadDonation();
-  }, [donationFromParams, route.params]);
+    return subscribeToDonation(
+      donationId,
+      setDonation,
+      () => Alert.alert('Error', 'Unable to watch this donation.'),
+    );
+  }, [donationId]);
 
   const handleStatusUpdate = async (newStatus) => {
     if (!donation?.id) return;
@@ -142,6 +142,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 30,
+    paddingBottom: 120,
   },
   eyebrow: {
     fontSize: 12,

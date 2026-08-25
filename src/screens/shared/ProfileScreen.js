@@ -1,14 +1,18 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { useAuth } from '../../context/AuthContext';
 
 const GREEN = '#1A7A4A';
@@ -33,6 +37,7 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(userProfile?.name || '');
   const [phone, setPhone] = useState(userProfile?.phone || '');
+  const modalScrollRef = useRef(null);
   const role = ROLE_INFO[userProfile?.role] || ROLE_INFO.recipient;
   const email = userProfile?.email || user?.email || 'No email added';
 
@@ -40,6 +45,10 @@ export default function ProfileScreen() {
     setName(userProfile?.name || '');
     setPhone(userProfile?.phone || '');
     setEditing(true);
+  };
+
+  const scrollToField = (y) => {
+    setTimeout(() => modalScrollRef.current?.scrollTo({ animated: true, y }), 50);
   };
 
   const saveProfile = async () => {
@@ -92,12 +101,8 @@ export default function ProfileScreen() {
             <Text style={styles.email}>{email}</Text>
             <View style={styles.roleBadge}>
               <Text style={styles.roleBadgeText}>{role.label}</Text>
-              <Text style={styles.verified}>✓ Verified</Text>
             </View>
           </View>
-          <Pressable accessibilityLabel="Edit profile" onPress={openEditor} style={styles.editButton}>
-            <Text style={styles.editButtonText}>Edit</Text>
-          </Pressable>
         </View>
 
         <View style={styles.impactCard}>
@@ -131,28 +136,45 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        <Pressable onPress={confirmSignOut} style={styles.signOutButton} accessibilityRole="button">
-          <Text style={styles.signOutIcon}>↪</Text>
+        <Pressable
+          onPress={confirmSignOut}
+          style={({ pressed }) => [styles.signOutButton, pressed && styles.signOutButtonPressed]}
+          accessibilityRole="button"
+        >
+          <View style={styles.signOutIconWrap}><Ionicons name="log-out-outline" size={18} color="#FFFFFF" /></View>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
         <Text style={styles.version}>ShareBite · Your community, shared</Text>
       </ScrollView>
 
-      <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
-        <View style={styles.modalBackdrop}>
+      <Modal visible={editing} transparent animationType="fade" onRequestClose={() => setEditing(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+          style={styles.modalBackdrop}
+        >
+          <BlurView intensity={80} tint="dark" style={[StyleSheet.absoluteFill, styles.modalBlur]} />
           <View style={styles.modalCard}>
-            <View style={styles.modalHeader}><View><Text style={styles.modalTitle}>Edit profile</Text><Text style={styles.modalSubtitle}>Keep your contact details up to date.</Text></View><Pressable onPress={() => setEditing(false)}><Text style={styles.close}>×</Text></Pressable></View>
-            <Text style={styles.inputLabel}>Full name</Text>
-            <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your full name" autoCapitalize="words" />
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput value={email} style={[styles.input, styles.inputDisabled]} editable={false} />
-            <Text style={styles.inputLabel}>Phone number</Text>
-            <TextInput value={phone} onChangeText={setPhone} style={styles.input} placeholder="Your phone number" keyboardType="phone-pad" />
-            <Pressable onPress={saveProfile} disabled={saving} style={[styles.saveButton, saving && styles.disabledButton]}>
-              <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save changes'}</Text>
-            </Pressable>
+            <ScrollView
+              ref={modalScrollRef}
+              contentContainerStyle={styles.modalContent}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.modalHeader}><View><Text style={styles.modalEyebrow}>ACCOUNT SETTINGS</Text><Text style={styles.modalTitle}>Edit profile</Text><Text style={styles.modalSubtitle}>Keep your contact details up to date.</Text></View><Pressable onPress={() => setEditing(false)} style={styles.closeButton} accessibilityLabel="Close edit profile"><Ionicons name="close" size={22} color="#374151" /></Pressable></View>
+              <Text style={styles.inputLabel}>Full name</Text>
+              <TextInput value={name} onChangeText={setName} onFocus={() => scrollToField(0)} style={styles.input} placeholder="Your full name" autoCapitalize="words" />
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput value={email} onFocus={() => scrollToField(45)} style={[styles.input, styles.inputDisabled]} editable={false} />
+              <Text style={styles.inputLabel}>Phone number</Text>
+              <TextInput value={phone} onChangeText={setPhone} onFocus={() => scrollToField(100)} style={styles.input} placeholder="Your phone number" keyboardType="phone-pad" />
+              <Pressable onPress={saveProfile} disabled={saving} style={[styles.saveButton, saving && styles.disabledButton]}>
+                <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save changes'}</Text>
+              </Pressable>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -160,7 +182,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  content: { padding: 20, paddingBottom: 36 },
+  content: { padding: 20, paddingBottom: 120 },
   header: { marginBottom: 18 },
   headerEyebrow: { color: GREEN, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 5 },
   title: { color: '#111827', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
@@ -195,16 +217,20 @@ const styles = StyleSheet.create({
   menuTitle: { color: '#1F2937', fontSize: 14, fontWeight: '700' },
   menuSubtitle: { color: '#9CA3AF', fontSize: 11, marginTop: 3 },
   chevron: { color: '#9CA3AF', fontSize: 25, fontWeight: '300', marginLeft: 8 },
-  signOutButton: { alignItems: 'center', borderColor: '#F2B8A7', borderRadius: 14, borderWidth: 1, flexDirection: 'row', justifyContent: 'center', marginTop: 20, paddingVertical: 13 },
-  signOutIcon: { color: '#E05A2B', fontSize: 19, marginRight: 8 },
-  signOutText: { color: '#E05A2B', fontSize: 14, fontWeight: '700' },
+  signOutButton: { alignItems: 'center', backgroundColor: '#e22525', borderColor: '#E05A2B', borderRadius: 16, borderWidth: 1, flexDirection: 'row', justifyContent: 'center', marginTop: 20, minHeight: 54, paddingHorizontal: 18, shadowColor: '#C2412D', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 3 },
+  signOutButtonPressed: { backgroundColor: '#C2412D', borderColor: '#C2412D', transform: [{ scale: 0.98 }] },
+  signOutIconWrap: { alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 15, height: 30, justifyContent: 'center', marginRight: 10, width: 30 },
+  signOutText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   version: { color: '#9CA3AF', fontSize: 11, marginTop: 18, textAlign: 'center' },
-  modalBackdrop: { backgroundColor: 'rgba(17, 24, 39, 0.45)', flex: 1, justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 34 },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
+  modalBlur: { backgroundColor: 'rgba(15, 23, 42, 0.42)' },
+  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '88%' },
+  modalContent: { padding: 22, paddingBottom: 34 },
   modalHeader: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  modalTitle: { color: '#111827', fontSize: 21, fontWeight: '800' },
+  modalEyebrow: { color: GREEN, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  modalTitle: { color: '#13231A', fontSize: 24, fontWeight: '800', marginTop: 4 },
   modalSubtitle: { color: '#6B7280', fontSize: 12, marginTop: 4 },
-  close: { color: '#6B7280', fontSize: 28, lineHeight: 26 },
+  closeButton: { alignItems: 'center', backgroundColor: '#F1F5F2', borderRadius: 20, height: 40, justifyContent: 'center', width: 40 },
   inputLabel: { color: '#374151', fontSize: 13, fontWeight: '700', marginBottom: 6, marginTop: 12 },
   input: { borderColor: '#D1D5DB', borderRadius: 12, borderWidth: 1.5, color: '#111827', fontSize: 15, paddingHorizontal: 13, paddingVertical: 12 },
   inputDisabled: { backgroundColor: '#F3F4F6', color: '#6B7280' },
