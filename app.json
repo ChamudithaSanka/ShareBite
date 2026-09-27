@@ -8,21 +8,9 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "plugins": [
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "ShareBite uses your location to set the donation pickup point."
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "ShareBite uses your photos to show the food you are donating.",
-          "cameraPermission": "ShareBite uses your camera to photograph the food you are donating.",
-          "microphonePermission": false
-        }
-      ],
-      "@react-native-community/datetimepicker"
+      "expo-font",
+      "expo-image",
+      "expo-status-bar"
     ],
     "splash": {
       "image": "./assets/splash.png",
@@ -41,9 +29,6 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-font"
-    ]
+    }
   }
 }

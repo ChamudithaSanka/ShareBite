@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Image, SafeAreaView, StyleSheet } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SPLASH_DURATION = 3000;
 

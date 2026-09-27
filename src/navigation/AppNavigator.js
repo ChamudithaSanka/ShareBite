@@ -2,7 +2,6 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 
 // Auth screens
@@ -15,6 +14,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import RecipientNavigator from './RecipientNavigator';
 import DonorNavigator from './DonorNavigator';
 import VolunteerNavigator from './VolunteerNavigator';
+import CoordinatorNavigator from './CoordinatorNavigator';
 
 const Stack = createStackNavigator();
 
@@ -41,10 +41,9 @@ function AuthStack({ initialRouteName = 'Splash' }) {
   );
 }
 
-import CoordinatorNavigator from './CoordinatorNavigator';
-
 function RoleNavigator({ role }) {
-  switch (role) {
+  const normalizedRole = role ? String(role).trim().toLowerCase() : '';
+  switch (normalizedRole) {
     case 'recipient':
       return <RecipientNavigator />;
     case 'donor':
@@ -54,7 +53,7 @@ function RoleNavigator({ role }) {
     case 'coordinator':
       return <CoordinatorNavigator />;
     default:
-      return <ComingSoonScreen route={{ params: { role: 'Unknown' } }} />;
+      return <ComingSoonScreen route={{ params: { role: role || 'Unknown' } }} />;
   }
 }
 
@@ -73,20 +72,12 @@ export default function AppNavigator() {
     <NavigationContainer>
       {!user || !userProfile
         ? <AuthStack initialRouteName={signedOut ? 'Login' : 'Splash'} />
-        : (
-          <SafeAreaView edges={['top']} style={styles.roleSafeArea}>
-            <RoleNavigator role={userProfile.role} />
-          </SafeAreaView>
-        )}
+        : <RoleNavigator role={userProfile.role || userProfile.Role} />}
     </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  roleSafeArea: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
   loader: {
     flex: 1,
     justifyContent: 'center',
