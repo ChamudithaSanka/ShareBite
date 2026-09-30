@@ -35,6 +35,17 @@ export const subscribeToDonation = (donationId, onData, onError) => {
   }, onError);
 };
 
+export const subscribeToDonorDonations = (donorId, onData, onError) => {
+  if (!donorId) return () => {};
+
+  const donationsQuery = query(collection(db, 'donations'), where('donorId', '==', donorId));
+  return onSnapshot(
+    donationsQuery,
+    (snapshot) => onData(snapshot.docs.map((donation) => ({ id: donation.id, ...donation.data() }))),
+    onError,
+  );
+};
+
 export const donationService = {
   async getDonationsByDonor(donorId) {
     if (!donorId) return [];
@@ -94,6 +105,7 @@ export const donationService = {
   },
   subscribeToAvailableDonations,
   subscribeToDonation,
+  subscribeToDonorDonations,
 };
 
 export { subscribeToAvailableDonations };

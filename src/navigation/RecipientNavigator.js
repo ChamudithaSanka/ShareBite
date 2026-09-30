@@ -67,7 +67,6 @@ export default function RecipientNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         animation: 'fade',
-        popToTopOnBlur: true,
         tabBarActiveTintColor: 'blue',
         tabBarInactiveTintColor: 'black',
         tabBarStyle: {

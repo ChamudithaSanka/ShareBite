@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Image,
   Platform,
@@ -14,7 +14,10 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { donationService } from '../../services/donationService';
 
 const GREEN = '#1A7A4A';
@@ -25,6 +28,12 @@ const foodTypeOptions = ['ready-to-eat', 'storable'];
 const dateOptions = ['Today', 'Tomorrow', 'This weekend'];
 
 const formatDate = (value) => value.toISOString().split('T')[0];
+const parseDateString = (value) => {
+  if (!value || typeof value !== 'string') return new Date();
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return new Date();
+  return new Date(year, month - 1, day, 12, 0, 0);
+};
 const formatTime = (value) => value.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 const initialForm = {
@@ -45,6 +54,7 @@ const initialForm = {
 
 export default function CreateDonationScreen() {
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
   const [form, setForm] = useState(initialForm);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -52,6 +62,8 @@ export default function CreateDonationScreen() {
   const [showExpiryPicker, setShowExpiryPicker] = useState(false);
   const [showPickupDatePicker, setShowPickupDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const scrollViewRef = useRef(null);
 
   const updateField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -128,17 +140,7 @@ export default function CreateDonationScreen() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!user?.uid) {
-      Alert.alert('Not logged in', 'Please log in to create a donation.');
-      return;
-    }
-
-    if (!form.pickupLocation || !form.pickupAvailability) {
-      Alert.alert('Missing pickup info', 'Please fill in the pickup location and availability.');
-      return;
-    }
-
+  const publishDonation = async () => {
     setLoading(true);
 
     try {
@@ -171,63 +173,95 @@ export default function CreateDonationScreen() {
     }
   };
 
+  const handleSubmit = async () => {
+    if (!user?.uid) {
+      Alert.alert('Not logged in', 'Please log in to create a donation.');
+      return;
+    }
+
+    if (!form.pickupLocation || !form.pickupAvailability) {
+      Alert.alert('Missing pickup info', 'Please fill in the pickup location and availability.');
+      return;
+    }
+
+    Alert.alert('Publish donation?', 'This will make the donation available to recipients.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Publish', onPress: publishDonation },
+    ]);
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Create Donation</Text>
-      <Text style={styles.stepText}>Step {step} of 2</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        onScroll={({ nativeEvent }) => setShowBackToTop(nativeEvent.contentOffset.y > 280)}
+        scrollEventThrottle={16}
+      >
+      <Text style={[styles.title, { color: colors.text }]}>Create Donation</Text>
+      <Text style={[styles.stepText, { color: colors.textSecondary }]}>Step {step} of 2</Text>
+      {step === 2 ? (
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => setStep(1)}>
+            <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+            <Text style={[styles.secondaryButtonText, { color: colors.textSecondary }]}>Back to food details</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {step === 1 && (
         <View>
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Food name</Text>
-            <TextInput style={styles.input} value={form.foodName} onChangeText={(value) => updateField('foodName', value)} />
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Food name</Text>
+            <TextInput style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={form.foodName} onChangeText={(value) => updateField('foodName', value)} placeholderTextColor={colors.textMuted} />
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Quantity</Text>
-            <TextInput style={styles.input} value={form.quantity} onChangeText={(value) => updateField('quantity', value)} placeholder="e.g. 15 meals" />
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Quantity</Text>
+            <TextInput style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={form.quantity} onChangeText={(value) => updateField('quantity', value)} placeholder="e.g. 15 meals" placeholderTextColor={colors.textMuted} />
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Category</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Category</Text>
             <View style={styles.optionWrap}>
               {categoryOptions.map((option) => (
                 <TouchableOpacity
                   key={option}
-                  style={[styles.optionChip, form.category === option && styles.optionChipActive]}
+                  style={[styles.optionChip, { backgroundColor: colors.surfaceMuted }, form.category === option && { backgroundColor: colors.primarySoft }]}
                   onPress={() => updateField('category', option)}
                 >
-                  <Text style={[styles.optionText, form.category === option && styles.optionTextActive]}>{option}</Text>
+                  <Text style={[styles.optionText, { color: colors.textSecondary }, form.category === option && { color: colors.primary }]}>{option}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Condition</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Condition</Text>
             <View style={styles.optionWrap}>
               {conditionOptions.map((option) => (
                 <TouchableOpacity
                   key={option}
-                  style={[styles.optionChip, form.condition === option && styles.optionChipActive]}
+                  style={[styles.optionChip, { backgroundColor: colors.surfaceMuted }, form.condition === option && { backgroundColor: colors.primarySoft }]}
                   onPress={() => updateField('condition', option)}
                 >
-                  <Text style={[styles.optionText, form.condition === option && styles.optionTextActive]}>{option}</Text>
+                  <Text style={[styles.optionText, { color: colors.textSecondary }, form.condition === option && { color: colors.primary }]}>{option}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Food type</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Food type</Text>
             <View style={styles.segmentedRow}>
               {foodTypeOptions.map((type) => (
                 <TouchableOpacity
                   key={type}
-                  style={[styles.segmentButton, form.foodType === type && styles.segmentButtonActive]}
+                  style={[styles.segmentButton, { backgroundColor: colors.surfaceMuted }, form.foodType === type && { backgroundColor: colors.primarySoft }]}
                   onPress={() => updateField('foodType', type)}
                 >
-                  <Text style={[styles.segmentText, form.foodType === type && styles.segmentTextActive]}>
+                  <Text style={[styles.segmentText, { color: colors.textSecondary }, form.foodType === type && { color: colors.primary }] }>
                     {type === 'ready-to-eat' ? 'Ready to eat' : 'Storable'}
                   </Text>
                 </TouchableOpacity>
@@ -236,25 +270,37 @@ export default function CreateDonationScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Best before / expiry</Text>
-            <TouchableOpacity style={styles.inputButton} onPress={() => setShowExpiryPicker(true)}>
-              <Text style={form.expiry ? styles.inputButtonText : styles.placeholderText}>{form.expiry || 'Select expiry date'}</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Best before / expiry</Text>
+            <TouchableOpacity
+              style={[styles.inputButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={() => setShowExpiryPicker(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={[form.expiry ? styles.inputButtonText : styles.placeholderText, { color: form.expiry ? colors.text : colors.textMuted }]}>
+                {form.expiry || 'Select expiry date'}
+              </Text>
             </TouchableOpacity>
             {showExpiryPicker && (
-              <DateTimePicker
-                value={form.expiry ? new Date(form.expiry) : new Date()}
-                mode="date"
-                minimumDate={new Date()}
-                onChange={(event, value) => {
-                  setShowExpiryPicker(Platform.OS === 'ios');
-                  if (value) updateField('expiry', formatDate(value));
-                }}
-              />
+              <View style={[styles.datePickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <DateTimePicker
+                  value={form.expiry ? parseDateString(form.expiry) : new Date()}
+                  mode="date"
+                  minimumDate={new Date()}
+                  display={Platform.OS === 'android' ? 'calendar' : 'inline'}
+                  accentColor={isDark ? colors.primary : GREEN}
+                  themeVariant={isDark ? 'dark' : 'light'}
+                  textColor={isDark ? colors.text : '#111827'}
+                  onChange={(event, value) => {
+                    setShowExpiryPicker(Platform.OS === 'ios');
+                    if (value) updateField('expiry', formatDate(value));
+                  }}
+                />
+              </View>
             )}
           </View>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
-            <Text style={styles.primaryButtonText}>Next</Text>
+          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.primary }]} onPress={nextStep}>
+            <Text style={[styles.primaryButtonText, { color: colors.surface }]}>Next</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -262,26 +308,30 @@ export default function CreateDonationScreen() {
       {step === 2 && (
         <View>
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Pickup date</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Pickup date</Text>
             <View style={styles.optionWrap}>
               {dateOptions.map((option) => (
                 <TouchableOpacity
                   key={option}
-                  style={[styles.optionChip, form.pickupDate === option && styles.optionChipActive]}
+                  style={[styles.optionChip, { backgroundColor: colors.surfaceMuted }, form.pickupDate === option && { backgroundColor: colors.primarySoft }]}
                   onPress={() => updateField('pickupDate', option)}
                 >
-                  <Text style={[styles.optionText, form.pickupDate === option && styles.optionTextActive]}>{option}</Text>
+                  <Text style={[styles.optionText, { color: colors.textSecondary }, form.pickupDate === option && { color: colors.primary }]}>{option}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-            <TouchableOpacity style={[styles.inputButton, styles.marginTop]} onPress={() => setShowPickupDatePicker(true)}>
-              <Text style={styles.inputButtonText}>{form.pickupDate === 'Today' || form.pickupDate === 'Tomorrow' || form.pickupDate === 'This weekend' ? 'Select a custom date' : form.pickupDate}</Text>
+            <TouchableOpacity style={[styles.inputButton, styles.marginTop, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setShowPickupDatePicker(true)}>
+              <Text style={[styles.inputButtonText, { color: colors.text }]}>{form.pickupDate === 'Today' || form.pickupDate === 'Tomorrow' || form.pickupDate === 'This weekend' ? 'Select a custom date' : form.pickupDate}</Text>
             </TouchableOpacity>
             {showPickupDatePicker && (
               <DateTimePicker
                 value={form.pickupDate && !dateOptions.includes(form.pickupDate) ? new Date(form.pickupDate) : new Date()}
                 mode="date"
                 minimumDate={new Date()}
+                display={Platform.OS === 'android' ? 'calendar' : 'inline'}
+                accentColor={isDark ? colors.primary : GREEN}
+                themeVariant={isDark ? 'dark' : 'light'}
+                textColor={isDark ? colors.text : '#111827'}
                 onChange={(event, value) => {
                   setShowPickupDatePicker(Platform.OS === 'ios');
                   if (value) updateField('pickupDate', formatDate(value));
@@ -291,27 +341,35 @@ export default function CreateDonationScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Pickup location</Text>
-            <TouchableOpacity style={styles.locationButton} onPress={handleUseCurrentLocation} disabled={locating}>
-              <Text style={styles.locationButtonText}>{locating ? 'Fetching location...' : 'Use my current location'}</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Pickup location</Text>
+            <TouchableOpacity style={[styles.locationButton, { backgroundColor: colors.primarySoft }]} onPress={handleUseCurrentLocation} disabled={locating}>
+              <Text style={[styles.locationButtonText, { color: colors.primary }]}>{locating ? 'Fetching location...' : 'Use my current location'}</Text>
             </TouchableOpacity>
             <TextInput
-              style={[styles.input, styles.marginTop]}
+              style={[styles.input, styles.marginTop, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={form.pickupLocation}
-              onChangeText={(value) => updateField('pickupLocation', value)}
+              onChangeText={(value) => setForm((previous) => ({
+                ...previous,
+                pickupLocation: value,
+                pickupLatitude: null,
+                pickupLongitude: null,
+              }))}
               placeholder="Enter pickup address or venue"
             />
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Pickup availability</Text>
-            <TouchableOpacity style={styles.inputButton} onPress={() => setShowTimePicker(true)}>
-              <Text style={form.pickupAvailability ? styles.inputButtonText : styles.placeholderText}>{form.pickupAvailability || 'Select pickup time'}</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Pickup availability</Text>
+            <TouchableOpacity style={[styles.inputButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setShowTimePicker(true)}>
+              <Text style={[form.pickupAvailability ? styles.inputButtonText : styles.placeholderText, { color: form.pickupAvailability ? colors.text : colors.textMuted }]}>{form.pickupAvailability || 'Select pickup time'}</Text>
             </TouchableOpacity>
             {showTimePicker && (
               <DateTimePicker
                 value={new Date()}
                 mode="time"
+                accentColor={isDark ? colors.primary : GREEN}
+                themeVariant={isDark ? 'dark' : 'light'}
+                textColor={isDark ? colors.text : '#111827'}
                 onChange={(event, value) => {
                   setShowTimePicker(Platform.OS === 'ios');
                   if (value) updateField('pickupAvailability', formatTime(value));
@@ -321,20 +379,20 @@ export default function CreateDonationScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Photo (optional)</Text>
-            <TouchableOpacity style={styles.photoPicker} onPress={choosePhoto}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Photo (optional)</Text>
+            <TouchableOpacity style={[styles.photoPicker, { borderColor: colors.border }]} onPress={choosePhoto}>
               {form.photoUri ? (
                 <Image source={{ uri: form.photoUri }} style={styles.photoPreview} />
               ) : (
-                <Text style={styles.locationButtonText}>Add food photo</Text>
+                <Text style={[styles.locationButtonText, { color: colors.primary }]}>Add food photo</Text>
               )}
             </TouchableOpacity>
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Notes</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Notes</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={form.notes}
               onChangeText={(value) => updateField('notes', value)}
               multiline
@@ -342,17 +400,37 @@ export default function CreateDonationScreen() {
             />
           </View>
 
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => setStep(1)}>
-              <Text style={styles.secondaryButtonText}>Back</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Submit</Text>}
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.submitButton, { backgroundColor: colors.primary, borderColor: colors.primary }, loading && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={loading ? 'Publishing donation' : 'Publish donation'}
+            accessibilityState={{ disabled: loading }}
+          >
+            <View style={styles.submitIcon}>
+              {loading
+                ? <ActivityIndicator color={colors.surface} size="small" />
+                : <Ionicons name="cloud-upload-outline" size={19} color={colors.surface} />}
+            </View>
+            <Text style={[styles.submitButtonText, { color: colors.surface }]}>{loading ? 'Publishing...' : 'Publish donation'}</Text>
+            {!loading ? <Ionicons name="arrow-forward" size={17} color={colors.surface} /> : null}
+          </TouchableOpacity>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+      {showBackToTop ? (
+        <TouchableOpacity
+          style={styles.backToTopButton}
+          onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true })}
+          accessibilityRole="button"
+          accessibilityLabel="Back to top"
+          accessibilityHint="Scrolls to the beginning of the donation form"
+        >
+          <Ionicons name="arrow-up" size={19} color={colors.primary} />
+        </TouchableOpacity>
+      ) : null}
+    </SafeAreaView>
   );
 }
 
@@ -360,6 +438,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     padding: 20,
@@ -406,6 +487,13 @@ const styles = StyleSheet.create({
     minHeight: 46,
     justifyContent: 'center',
     backgroundColor: '#fff',
+  },
+  datePickerContainer: {
+    borderWidth: 1.2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginTop: 10,
+    overflow: 'hidden',
   },
   inputButtonText: {
     fontSize: 15,
@@ -502,21 +590,74 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   secondaryButton: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingVertical: 14,
     alignItems: 'center',
-    marginRight: 10,
+    flexDirection: 'row',
+    gap: 7,
+    paddingVertical: 9,
   },
   secondaryButtonText: {
     color: '#374151',
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700',
   },
   buttonRow: {
-    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    marginTop: -8,
+  },
+  submitButton: {
     alignItems: 'center',
+    backgroundColor: GREEN,
+    borderColor: '#14663E',
+    borderRadius: 14,
+    borderWidth: 1,
+    elevation: 3,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 58,
+    paddingHorizontal: 12,
+    width: '100%',
+    shadowColor: '#124B30',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+  },
+  submitButtonDisabled: {
+    opacity: 0.72,
+  },
+  submitIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    marginHorizontal: 8,
+    textAlign: 'center',
+  },
+  backToTopButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#DCE8E0',
+    borderRadius: 22,
+    borderWidth: 1,
+    elevation: 5,
+    height: 44,
+    justifyContent: 'center',
+    position: 'absolute',
+    left: 20,
+    top: 52,
+    shadowColor: '#13231A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    width: 44,
   },
   marginTop: {
     marginTop: 10,

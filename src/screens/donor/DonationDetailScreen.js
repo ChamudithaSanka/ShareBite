@@ -1,22 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useTheme } from '../../context/ThemeContext';
 import { donationService, subscribeToDonation } from '../../services/donationService';
 
 export default function DonationDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { colors } = useTheme();
   const donationFromParams = route.params?.donation;
   const [donation, setDonation] = useState(donationFromParams || null);
+  const [loading, setLoading] = useState(!donationFromParams);
+  const [error, setError] = useState('');
   const donationId = donationFromParams?.id || route.params?.donationId;
 
   useEffect(() => {
-    if (!donationId) return undefined;
+    if (!donationId) {
+      setLoading(false);
+      return undefined;
+    }
 
     return subscribeToDonation(
       donationId,
-      setDonation,
-      () => Alert.alert('Error', 'Unable to watch this donation.'),
+      (nextDonation) => {
+        setDonation(nextDonation);
+        setLoading(false);
+      },
+      () => {
+        setError('Unable to load this donation.');
+        setLoading(false);
+      },
     );
   }, [donationId]);
 
@@ -55,82 +70,88 @@ export default function DonationDetailScreen() {
     ]);
   };
 
-  if (!donation) {
+  if (loading) {
+    return <SafeAreaView style={[styles.centered, { backgroundColor: colors.background }]} edges={['top']}><ActivityIndicator color={colors.primary} /></SafeAreaView>;
+  }
+
+  if (!donation || error) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Donation not found</Text>
-      </View>
+      <SafeAreaView style={[styles.centered, { backgroundColor: colors.background }]} edges={['top']}>
+        <Text style={[styles.title, { color: colors.text }]}>{error || 'Donation not found'}</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>Donation details</Text>
-      <Text style={styles.title}>{donation.foodName || 'Food donation'}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Text style={[styles.eyebrow, { color: colors.primary }]}>Donation details</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{donation.foodName || 'Food donation'}</Text>
 
-      {donation.photoUrl ? <Image source={{ uri: donation.photoUrl }} style={styles.heroImage} /> : <View style={styles.heroPlaceholder}><Text style={styles.heroEmoji}>🍱</Text></View>}
+      {donation.photoUrl ? <Image source={{ uri: donation.photoUrl }} style={styles.heroImage} /> : <View style={[styles.heroPlaceholder, { backgroundColor: colors.primarySoft }]}><Text style={styles.heroEmoji}>🍱</Text></View>}
 
       <View style={styles.tracker}>
         {['Posted', 'Matched', 'Picked up', 'Delivered'].map((label, index) => (
           <View key={label} style={styles.trackerStep}>
             <View style={[styles.trackerDot, index <= (donation.status === 'picked_up' ? 2 : donation.status === 'reserved' ? 1 : 0) && styles.trackerDotActive]}><Text style={styles.trackerDotText}>{index < 1 ? '✓' : index + 1}</Text></View>
-            <Text style={styles.trackerLabel}>{label}</Text>
+            <Text style={[styles.trackerLabel, { color: colors.textSecondary }]}>{label}</Text>
           </View>
         ))}
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.row}>
-          <Text style={styles.label}>Status</Text>
-          <Text style={styles.status}>{donation.status}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Status</Text>
+          <Text style={[styles.status, { color: colors.primary }]}>{donation.status}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Quantity</Text>
-          <Text style={styles.value}>{donation.quantity}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Quantity</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{donation.quantity}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Category</Text>
-          <Text style={styles.value}>{donation.category}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Category</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{donation.category}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Condition</Text>
-          <Text style={styles.value}>{donation.condition}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Condition</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{donation.condition}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Pickup date</Text>
-          <Text style={styles.value}>{donation.pickupDate || 'Not set'}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Pickup date</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{donation.pickupDate || 'Not set'}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Pickup time</Text>
-          <Text style={styles.value}>{donation.pickupAvailability || 'Not set'}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Pickup time</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{donation.pickupAvailability || 'Not set'}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Location</Text>
-          <Text style={styles.value}>{donation.pickupLocation || 'Not set'}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Location</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{donation.pickupLocation || 'Not set'}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Notes</Text>
-          <Text style={styles.value}>{donation.notes || 'No notes'}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Notes</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{donation.notes || 'No notes'}</Text>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Update status</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Update status</Text>
       <View style={styles.buttonWrap}>
         {['available', 'pending_review', 'reserved', 'picked_up'].map((status) => (
           <TouchableOpacity
             key={status}
-            style={[styles.statusButton, donation.status === status && styles.statusButtonActive]}
+            style={[styles.statusButton, { backgroundColor: colors.surfaceMuted }, donation.status === status && { backgroundColor: colors.primarySoft }]}
             onPress={() => handleStatusUpdate(status)}
           >
-            <Text style={[styles.statusButtonText, donation.status === status && styles.statusButtonTextActive]}>{status.replace('_', ' ')}</Text>
+            <Text style={[styles.statusButtonText, { color: colors.textSecondary }, donation.status === status && { color: colors.primary }]}>{status.replace('_', ' ')}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-        <Text style={styles.deleteButtonText}>Delete donation</Text>
+      <TouchableOpacity style={[styles.deleteButton, { backgroundColor: colors.danger === '#FF9A78' ? '#3A211A' : '#FDECEC' }]} onPress={handleDelete}>
+        <Text style={[styles.deleteButtonText, { color: colors.danger }]}>Delete donation</Text>
       </TouchableOpacity>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -139,6 +160,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  centered: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: 20 },
   content: {
     padding: 20,
     paddingTop: 30,

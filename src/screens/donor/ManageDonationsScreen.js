@@ -1,14 +1,19 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { donationService } from '../../services/donationService';
 
 export default function ManageDonationsScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -21,12 +26,14 @@ export default function ManageDonationsScreen() {
         }
 
         if (isActive) setLoading(true);
+        if (isActive) setError('');
 
         try {
           const data = await donationService.getDonationsByDonor(user.uid);
           if (isActive) setDonations(data);
         } catch (error) {
           console.error('Failed to load donor donations:', error);
+          if (isActive) setError('Unable to load your donations.');
         } finally {
           if (isActive) setLoading(false);
         }
@@ -37,38 +44,47 @@ export default function ManageDonationsScreen() {
       return () => {
         isActive = false;
       };
-    }, [user])
+    }, [user, reloadKey])
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>My Donations</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Text style={[styles.title, { color: colors.text }]}>My Donations</Text>
 
       {loading ? (
-        <ActivityIndicator size="small" color="#1A7A4A" />
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : error ? (
+        <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{error}</Text>
+          <TouchableOpacity onPress={() => setReloadKey((key) => key + 1)} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.retryText, { color: colors.surface }]}>Try again</Text>
+          </TouchableOpacity>
+        </View>
       ) : donations.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No donations yet.</Text>
+        <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No donations yet.</Text>
         </View>
       ) : (
         donations.map((item) => (
           <TouchableOpacity
             key={item.id}
-            style={styles.card}
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={() => navigation.navigate('DonationDetail', { donation: item })}
           >
             {item.photoUrl ? <Image source={{ uri: item.photoUrl }} style={styles.itemImage} /> : <View style={styles.itemImagePlaceholder}><Text style={styles.placeholderEmoji}>🍱</Text></View>}
             <View style={styles.row}>
-              <Text style={styles.foodName}>{item.foodName}</Text>
-              <Text style={styles.status}>{item.status}</Text>
+              <Text style={[styles.foodName, { color: colors.text }]}>{item.foodName}</Text>
+              <Text style={[styles.status, { color: colors.primary }]}>{item.status}</Text>
             </View>
-            <Text style={styles.meta}>{item.quantity} • {item.category}</Text>
-            <Text style={styles.meta}>{item.foodType} • {item.condition}</Text>
-            <Text style={styles.meta}>Pickup: {item.pickupLocation}</Text>
+            <Text style={[styles.meta, { color: colors.textSecondary }]}>{item.quantity} • {item.category}</Text>
+            <Text style={[styles.meta, { color: colors.textSecondary }]}>{item.foodType} • {item.condition}</Text>
+            <Text style={[styles.meta, { color: colors.textSecondary }]}>Pickup: {item.pickupLocation}</Text>
           </TouchableOpacity>
         ))
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -147,5 +163,15 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  retryButton: {
+    alignItems: 'center',
+    borderRadius: 12,
+    marginTop: 14,
+    paddingVertical: 11,
+  },
+  retryText: {
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

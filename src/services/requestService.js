@@ -2,6 +2,7 @@ import {
   collection, doc, onSnapshot, query, serverTimestamp, setDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { calculateDistance, coordinatesFromValue } from '../utils';
 
 export const createFoodRequest = async ({
   donationId,
@@ -25,6 +26,10 @@ export const createFoodRequest = async ({
   const batch = writeBatch(db);
   const requestRef = doc(collection(db, 'requests'));
   const deliveryRef = doc(collection(db, 'deliveries'));
+  const calculatedDistance = distance || calculateDistance(
+    coordinatesFromValue(pickupCoordinates) || coordinatesFromValue(pickupLocation),
+    deliveryCoordinates,
+  ) || '';
 
   batch.set(requestRef, {
     donationId,
@@ -35,6 +40,7 @@ export const createFoodRequest = async ({
     coordinatorApproved: false,
     deliveryAddress,
     deliveryCoordinates,
+    distance: calculatedDistance,
     preferredTime,
     notes,
     foodName,
@@ -61,7 +67,7 @@ export const createFoodRequest = async ({
     pickupCoordinates,
     deliveryAddress,
     deliveryCoordinates,
-    distance,
+    distance: calculatedDistance,
     preferredTime,
     createdAt: serverTimestamp(),
   });

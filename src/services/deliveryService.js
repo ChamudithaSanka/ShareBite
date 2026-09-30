@@ -28,6 +28,13 @@ export const subscribeToVolunteerDeliveries = (volunteerId, onData, onError) => 
   return onSnapshot(deliveriesQuery, (snapshot) => onData(mapDeliveries(snapshot)), onError);
 };
 
+export const subscribeToDonorDeliveries = (donorId, onData, onError) => {
+  if (!donorId) return () => {};
+
+  const deliveriesQuery = query(collection(db, 'deliveries'), where('donorId', '==', donorId));
+  return onSnapshot(deliveriesQuery, (snapshot) => onData(mapDeliveries(snapshot)), onError);
+};
+
 export const getDeliveryById = async (deliveryId) => {
   if (!deliveryId) return null;
 
@@ -89,6 +96,7 @@ export const updateDeliveryStatus = async (deliveryId, status) => {
 export const deliveryService = {
   subscribeToAvailableDeliveries,
   subscribeToVolunteerDeliveries,
+  subscribeToDonorDeliveries,
   getDeliveryById,
   subscribeToDelivery,
   acceptDelivery,

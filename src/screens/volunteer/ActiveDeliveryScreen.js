@@ -1,12 +1,33 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Linking, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { subscribeToVolunteerDeliveries, updateDeliveryStatus } from '../../services/deliveryService';
 
 const GREEN = '#1A7A4A';
 const activeStatuses = ['assigned', 'picked_up', 'in_transit', 'at_recipient'];
 const locationFor = (delivery) => delivery.deliveryAddress || delivery.dropoffAddress || 'Drop-off unavailable';
+const coordinatesFor = (delivery, coordinateFields, latitudeFields, longitudeFields) => {
+  const coordinates = coordinateFields.map((field) => delivery[field]).find(Boolean);
+  const latitude = Number(coordinates?.latitude ?? latitudeFields.map((field) => delivery[field]).find((value) => value !== undefined && value !== null));
+  const longitude = Number(coordinates?.longitude ?? longitudeFields.map((field) => delivery[field]).find((value) => value !== undefined && value !== null));
+
+  return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
+};
+const pickupCoordinatesFor = (delivery) => coordinatesFor(
+  delivery,
+  ['pickupCoordinates', 'coordinates'],
+  ['pickupLatitude'],
+  ['pickupLongitude'],
+);
+const recipientCoordinatesFor = (delivery) => coordinatesFor(
+  delivery,
+  ['deliveryCoordinates', 'dropoffCoordinates', 'recipientCoordinates'],
+  ['deliveryLatitude', 'dropoffLatitude', 'recipientLatitude'],
+  ['deliveryLongitude', 'dropoffLongitude', 'recipientLongitude'],
+);
 const steps = [
   { status: 'assigned', title: 'Navigate to donor', button: 'Arrived at donor', icon: 'navigate-outline', detail: (delivery) => delivery.pickupLocation || delivery.pickupAddress || 'Pickup location unavailable' },
   { status: 'picked_up', title: 'Collect the food', button: 'Food collected', icon: 'cube-outline', detail: (delivery) => delivery.quantity || 'Quantity not specified' },
@@ -16,6 +37,7 @@ const steps = [
 
 export default function ActiveDeliveryScreen() {
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -37,6 +59,32 @@ export default function ActiveDeliveryScreen() {
   const currentStep = currentDelivery
     ? steps.findIndex((step) => step.status === currentDelivery.status)
     : -1;
+  const donorCoordinates = currentDelivery ? pickupCoordinatesFor(currentDelivery) : null;
+  const recipientCoordinates = currentDelivery ? recipientCoordinatesFor(currentDelivery) : null;
+  const isNavigationStep = currentStep === 0 || currentStep === 2;
+  const navigationCoordinates = currentStep === 0 ? donorCoordinates : recipientCoordinates;
+  const navigationLabel = currentStep === 0 ? 'donor' : 'recipient';
+
+  const openNavigationMap = async () => {
+    if (!currentDelivery) return;
+
+    const destination = navigationCoordinates
+      ? `${navigationCoordinates.latitude},${navigationCoordinates.longitude}`
+      : currentStep === 0
+        ? currentDelivery.pickupLocation || currentDelivery.pickupAddress
+        : currentDelivery.deliveryAddress || currentDelivery.dropoffAddress;
+
+    if (!destination) {
+      Alert.alert('Location unavailable', `This delivery does not have a ${navigationLabel} location yet.`);
+      return;
+    }
+
+    try {
+      await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`);
+    } catch (error) {
+      Alert.alert('Maps unavailable', 'We could not open Google Maps on this device.');
+    }
+  };
 
   const advanceDelivery = async () => {
     if (!currentDelivery) return;
@@ -117,47 +165,80 @@ export default function ActiveDeliveryScreen() {
 
   return (
     <>
-      <View style={[styles.container, styles.content]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <View style={styles.content}>
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.eyebrow}>YOUR ROUTE</Text>
-          <Text style={styles.title}>Active delivery</Text>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR ROUTE</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Active delivery</Text>
         </View>
-        
       </View>
-      <Text style={styles.subtitle}>Jobs assigned to you and your completed work.</Text>
-      {loading ? <ActivityIndicator color={GREEN} style={styles.loader} /> : null}
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Jobs assigned to you and your completed work.</Text>
+      {loading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
       {!loading && !currentDelivery ? (
-        <View style={styles.emptyCard}>
-          <View style={styles.emptyIcon}><Ionicons name="checkmark-done-outline" size={30} color={GREEN} /></View>
-          <Text style={styles.emptyTitle}>You are all caught up</Text>
-          <Text style={styles.emptyText}>Accept a job from Available Jobs to start your next delivery.</Text>
+        <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.emptyIcon, { backgroundColor: colors.primarySoft }]}><Ionicons name="checkmark-done-outline" size={30} color={colors.primary} /></View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>You are all caught up</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Accept a job from Available Jobs to start your next delivery.</Text>
         </View>
       ) : null}
       {currentDelivery ? (
-        <View style={styles.activeCard}>
+        <View style={[styles.activeCard, { backgroundColor: colors.surface }]}>
           <View style={styles.cardHeader}>
-            <View style={styles.packageIcon}><Ionicons name="cube-outline" size={24} color={GREEN} /></View>
+            <View style={[styles.packageIcon, { backgroundColor: colors.primarySoft }]}><Ionicons name="cube-outline" size={24} color={colors.primary} /></View>
             <View style={styles.cardHeaderCopy}>
-              <Text style={styles.cardEyebrow}>CURRENT DELIVERY</Text>
-              <Text style={styles.cardTitle}>{currentDelivery.foodName || currentDelivery.title || 'Food delivery'}</Text>
+              <Text style={[styles.cardEyebrow, { color: colors.textSecondary }]}>CURRENT DELIVERY</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>{currentDelivery.foodName || currentDelivery.title || 'Food delivery'}</Text>
             </View>
             <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View>
           </View>
           <View style={styles.progressSection}>
-            <View style={styles.progressRow}>{steps.map((step, index) => <View key={step.status} style={[styles.progressTrack, index <= currentStep && styles.progressTrackActive]} />)}</View>
-            <View style={styles.stepLabels}>{steps.map((step, index) => <Text key={step.status} style={[styles.stepLabel, index === currentStep && styles.stepLabelActive]}>{step.title.replace('Navigate to ', '').replace('Collect the food', 'Collect').replace('Hand over the food', 'Handover')}</Text>)}</View>
+            <View style={styles.progressRow}>{steps.map((step, index) => <View key={step.status} style={[styles.progressTrack, { backgroundColor: colors.divider }, index <= currentStep && { backgroundColor: colors.primary }]} />)}</View>
+            <View style={styles.stepLabels}>{steps.map((step, index) => <Text key={step.status} style={[styles.stepLabel, { color: colors.textMuted }, index === currentStep && { color: colors.primary, fontWeight: '800' }]}>{step.title.replace('Navigate to ', '').replace('Collect the food', 'Collect').replace('Hand over the food', 'Handover')}</Text>)}</View>
           </View>
-          <View style={styles.map}>
-            <View style={styles.mapCircle}><Ionicons name={steps[currentStep].icon} size={32} color={GREEN} /></View>
-            <Text style={styles.mapTitle}>{steps[currentStep].title}</Text>
-            <Text style={styles.mapText}>{steps[currentStep].detail(currentDelivery)}</Text>
-          </View>
-          <View style={styles.detailsCard}>
-            <Text style={styles.detailsHeading}>Delivery details</Text>
-            <View style={styles.detailRow}><Ionicons name="restaurant-outline" size={18} color="#6B7280" /><Text style={styles.detailLabel}>Food</Text><Text style={styles.detailValue}>{currentDelivery.foodName || currentDelivery.title || 'Food delivery'}</Text></View>
-            <View style={styles.detailRow}><Ionicons name="scale-outline" size={18} color="#6B7280" /><Text style={styles.detailLabel}>Quantity</Text><Text style={styles.detailValue}>{currentDelivery.quantity || 'Not specified'}</Text></View>
-            <View style={styles.detailRow}><Ionicons name="person-outline" size={18} color="#6B7280" /><Text style={styles.detailLabel}>Recipient</Text><Text style={styles.detailValue}>{currentDelivery.recipientName || currentDelivery.recipient || 'Recipient'}</Text></View>
+          <TouchableOpacity
+            style={[styles.navigationCard, { backgroundColor: isDark ? colors.surfaceMuted : '#F1F7F3', borderColor: colors.border }]}
+            onPress={isNavigationStep ? openNavigationMap : undefined}
+            activeOpacity={isNavigationStep ? 0.85 : 1}
+            disabled={!isNavigationStep}
+            accessible={isNavigationStep}
+            accessibilityRole={isNavigationStep ? 'button' : undefined}
+            accessibilityLabel={isNavigationStep ? `Open directions to ${navigationLabel}: ${steps[currentStep].detail(currentDelivery)}` : undefined}
+          >
+            <View style={styles.navigationHeader}>
+                <View style={[styles.navigationIcon, { backgroundColor: colors.surface }]}>
+                <Ionicons name={steps[currentStep].icon} size={23} color={colors.primary} />
+              </View>
+              <View style={styles.navigationCopy}>
+                <Text style={[styles.navigationEyebrow, { color: colors.primary }]}>
+                  {currentStep === 0 ? 'PICKUP LOCATION' : currentStep === 2 ? 'DROP-OFF LOCATION' : 'DELIVERY STEP'}
+                </Text>
+                <Text style={[styles.navigationTitle, { color: colors.text }]}>{steps[currentStep].title}</Text>
+              </View>
+              {isNavigationStep ? <Ionicons name="open-outline" size={19} color={colors.primary} /> : null}
+            </View>
+            <View style={[styles.destinationPanel, { backgroundColor: colors.surface }]}>
+              <View style={[styles.destinationPin, { backgroundColor: colors.primarySoft }]}>
+                <Ionicons name="location" size={17} color={colors.primary} />
+              </View>
+              <View style={styles.destinationCopy}>
+                <Text style={[styles.destinationLabel, { color: colors.textSecondary }]}>{isNavigationStep ? 'DESTINATION' : 'DETAIL'}</Text>
+                <Text style={[styles.destinationText, { color: colors.text }]}>{steps[currentStep].detail(currentDelivery)}</Text>
+              </View>
+            </View>
+            {isNavigationStep ? (
+              <View style={styles.navigationAction}>
+                <Ionicons name="navigate-outline" size={18} color="#FFFFFF" />
+                  <Text style={styles.navigationActionText}>Open in Google Maps</Text>
+                <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+              </View>
+            ) : null}
+          </TouchableOpacity>
+          <View style={[styles.detailsCard, { backgroundColor: colors.surfaceMuted }]}>
+            <Text style={[styles.detailsHeading, { color: colors.textSecondary }]}>Delivery details</Text>
+            <View style={[styles.detailRow, { borderTopColor: colors.divider }]}><Ionicons name="restaurant-outline" size={18} color={colors.textSecondary} /><Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Food</Text><Text style={[styles.detailValue, { color: colors.text }]}>{currentDelivery.foodName || currentDelivery.title || 'Food delivery'}</Text></View>
+            <View style={[styles.detailRow, { borderTopColor: colors.divider }]}><Ionicons name="scale-outline" size={18} color={colors.textSecondary} /><Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Quantity</Text><Text style={[styles.detailValue, { color: colors.text }]}>{currentDelivery.quantity || 'Not specified'}</Text></View>
+            <View style={[styles.detailRow, { borderTopColor: colors.divider }]}><Ionicons name="person-outline" size={18} color={colors.textSecondary} /><Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Recipient</Text><Text style={[styles.detailValue, { color: colors.text }]}>{currentDelivery.recipientName || currentDelivery.recipient || 'Recipient'}</Text></View>
           </View>
           <View
             style={[styles.advanceButton, updating && styles.advanceButtonDisabled]}
@@ -186,13 +267,14 @@ export default function ActiveDeliveryScreen() {
               }]}
             >
               <Animated.View style={{ transform: [{ translateX: arrowNudge }] }}>
-                <Ionicons name="arrow-forward" size={20} color={GREEN} />
+                <Ionicons name="arrow-forward" size={20} color={isDark ? colors.primary : GREEN} />
               </Animated.View>
             </Animated.View>
           </View>
         </View>
       ) : null}
       </View>
+      </SafeAreaView>
     </>
   );
 }
@@ -210,7 +292,7 @@ const styles = StyleSheet.create({
   emptyIcon: { alignItems: 'center', backgroundColor: '#E8F5EE', borderRadius: 28, height: 56, justifyContent: 'center', width: 56 },
   emptyTitle: { color: '#13231A', fontSize: 18, fontWeight: '800', marginTop: 14 },
   emptyText: { color: '#6B7280', fontSize: 13, lineHeight: 19, marginTop: 6, textAlign: 'center' },
-  activeCard: { backgroundColor: '#FFFFFF', marginHorizontal: -20, marginTop: 20, minHeight: 620, padding: 20 },
+  activeCard: { backgroundColor: '#FFFFFF', marginHorizontal: -20, marginTop: 20, padding: 20 },
   cardHeader: { alignItems: 'center', flexDirection: 'row' },
   packageIcon: { alignItems: 'center', backgroundColor: '#E8F5EE', borderRadius: 14, height: 46, justifyContent: 'center', width: 46 },
   cardHeaderCopy: { flex: 1, marginLeft: 11 },
@@ -226,16 +308,25 @@ const styles = StyleSheet.create({
   stepLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 7 },
   stepLabel: { color: '#9CA3AF', fontSize: 9, maxWidth: 70, textAlign: 'center' },
   stepLabelActive: { color: GREEN, fontWeight: '800' },
-  map: { alignItems: 'center', backgroundColor: '#EAF6EE', borderRadius: 16, marginTop: 18, paddingHorizontal: 16, paddingVertical: 24 },
-  mapCircle: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 29, elevation: 2, height: 58, justifyContent: 'center', shadowColor: '#1A7A4A', shadowOpacity: 0.12, shadowRadius: 6, width: 58 },
-  mapTitle: { color: '#13231A', fontSize: 15, fontWeight: '800', marginTop: 12 },
-  mapText: { color: '#6B7280', fontSize: 12, marginTop: 4, textAlign: 'center' },
+  navigationCard: { backgroundColor: '#F1F7F3', borderColor: '#DCECE2', borderRadius: 18, borderWidth: 1, marginTop: 18, padding: 16 },
+  navigationHeader: { alignItems: 'center', flexDirection: 'row' },
+  navigationIcon: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 14, height: 46, justifyContent: 'center', width: 46 },
+  navigationCopy: { flex: 1, marginLeft: 12 },
+  navigationEyebrow: { color: GREEN, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  navigationTitle: { color: '#13231A', fontSize: 16, fontWeight: '800', marginTop: 4 },
+  destinationPanel: { alignItems: 'flex-start', backgroundColor: '#FFFFFF', borderRadius: 13, flexDirection: 'row', marginTop: 15, padding: 13 },
+  destinationPin: { alignItems: 'center', backgroundColor: '#E8F5EE', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
+  destinationCopy: { flex: 1, marginLeft: 10 },
+  destinationLabel: { color: '#6B7280', fontSize: 9, fontWeight: '800', letterSpacing: 0.7 },
+  destinationText: { color: '#25352B', fontSize: 13, fontWeight: '600', lineHeight: 19, marginTop: 4 },
+  navigationAction: { alignItems: 'center', backgroundColor: GREEN, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', marginTop: 13, minHeight: 46, paddingHorizontal: 14 },
+  navigationActionText: { color: '#FFFFFF', flex: 1, fontSize: 13, fontWeight: '800', marginLeft: 9 },
   detailsCard: { backgroundColor: '#F8FAF9', borderRadius: 15, marginTop: 14, padding: 14 },
   detailsHeading: { color: '#374151', fontSize: 12, fontWeight: '800', marginBottom: 5 },
   detailRow: { alignItems: 'center', borderTopColor: '#E6ECE8', borderTopWidth: 1, flexDirection: 'row', minHeight: 42 },
   detailLabel: { color: '#6B7280', fontSize: 12, marginLeft: 9, width: 66 },
   detailValue: { color: '#1F2937', flex: 1, fontSize: 12, fontWeight: '700', textAlign: 'right' },
-  advanceButton: { alignItems: 'center', backgroundColor: GREEN, borderColor: GREEN, borderRadius: 16, borderWidth: 1, justifyContent: 'center', marginTop: 14, minHeight: 60, overflow: 'hidden', paddingHorizontal: 64 },
+  advanceButton: { alignItems: 'center', backgroundColor: GREEN, borderColor: GREEN, borderRadius: 16, borderWidth: 1, justifyContent: 'center', marginTop: 14, minHeight: 60, overflow: 'hidden', paddingHorizontal: 64, transform: [{ translateY: -26 }] },
   advanceButtonDisabled: { opacity: 0.72 },
   advanceText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', textAlign: 'center' },
   swipeHandle: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 13, elevation: 3, height: 52, justifyContent: 'center', left: 4, position: 'absolute', shadowColor: '#0D482A', shadowOpacity: 0.28, shadowRadius: 5, top: 4, width: 56 },

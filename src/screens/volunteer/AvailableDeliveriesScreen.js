@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { subscribeToAvailableDeliveries, subscribeToVolunteerDeliveries } from '../../services/deliveryService';
 
 const GREEN = '#1A7A4A';
@@ -11,6 +13,7 @@ const dropoffFor = (delivery) => delivery.deliveryAddress || delivery.dropoffAdd
 
 export default function AvailableDeliveriesScreen({ navigation }) {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [deliveries, setDeliveries] = useState([]);
   const [completed, setCompleted] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,43 +37,43 @@ export default function AvailableDeliveriesScreen({ navigation }) {
   }, [user?.uid]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.eyebrow}>VOLUNTEER JOBS</Text>
-      <Text style={styles.title}>Available deliveries</Text>
-      <Text style={styles.subtitle}>Help move food to someone nearby.</Text>
-      {loading ? <ActivityIndicator color={GREEN} style={styles.loader} /> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <Text style={[styles.eyebrow, { color: colors.primary }]}>VOLUNTEER JOBS</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Available deliveries</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Help move food to someone nearby.</Text>
+      {loading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+      {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       <FlatList
         data={deliveries}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={!loading ? <Text style={styles.empty}>No deliveries are waiting right now.</Text> : null}
+        ListEmptyComponent={!loading ? <Text style={[styles.empty, { color: colors.textSecondary }]}>No deliveries are waiting right now.</Text> : null}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('DeliveryDetail', { delivery: item })} activeOpacity={0.8}>
+          <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('DeliveryDetail', { delivery: item })} activeOpacity={0.8}>
             <View style={styles.cardHeader}>
-              <View style={styles.foodIcon}><Text style={styles.foodEmoji}>📦</Text></View>
+              <View style={[styles.foodIcon, { backgroundColor: colors.primarySoft }]}><Text style={styles.foodEmoji}>📦</Text></View>
               <View style={styles.cardCopy}>
-                <Text style={styles.cardTitle}>{item.foodName || item.title || 'Food delivery'}</Text>
-                <Text style={styles.cardMeta}>{item.quantity || 'Quantity not specified'} · {item.distance || 'Distance unavailable'}</Text>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{item.foodName || item.title || 'Food delivery'}</Text>
+                <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>{item.quantity || 'Quantity not specified'} · {item.distance || 'Distance unavailable'}</Text>
               </View>
-              <Text style={styles.status}>NEW</Text>
+              <Text style={[styles.status, { color: colors.primary, backgroundColor: colors.primarySoft }]}>NEW</Text>
             </View>
-            <View style={styles.route}>
-              <View style={styles.routePoint}><Text style={styles.routeLabel}>PICKUP</Text><Text style={styles.routeText}>{pickupFor(item)}</Text></View>
-              <Text style={styles.arrow}>→</Text>
-              <View style={styles.routePoint}><Text style={styles.routeLabel}>DROP-OFF</Text><Text style={styles.routeText}>{dropoffFor(item)}</Text></View>
+            <View style={[styles.route, { backgroundColor: colors.surfaceMuted }]}>
+              <View style={styles.routePoint}><Text style={[styles.routeLabel, { color: colors.textMuted }]}>PICKUP</Text><Text style={[styles.routeText, { color: colors.text }]}>{pickupFor(item)}</Text></View>
+              <Text style={[styles.arrow, { color: colors.textMuted }]}>→</Text>
+              <View style={styles.routePoint}><Text style={[styles.routeLabel, { color: colors.textMuted }]}>DROP-OFF</Text><Text style={[styles.routeText, { color: colors.text }]}>{dropoffFor(item)}</Text></View>
             </View>
-            <Text style={styles.details}>View delivery details  ›</Text>
+            <Text style={[styles.details, { color: colors.primary }]}>View delivery details  ›</Text>
           </TouchableOpacity>
         )}
         ListFooterComponent={completed.length > 0 ? (
           <View style={styles.completedSection}>
-            <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>Completed deliveries</Text><Text style={styles.sectionSubtitle}>Your recent delivery history</Text></View><View style={styles.completedCount}><Text style={styles.completedCountText}>{completed.length}</Text></View></View>
+            <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.text }]}>Completed deliveries</Text><Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Your recent delivery history</Text></View><View style={[styles.completedCount, { backgroundColor: colors.primarySoft }]}><Text style={[styles.completedCountText, { color: colors.primary }]}>{completed.length}</Text></View></View>
             {completed.map((item) => (
-              <TouchableOpacity key={item.id} style={styles.completedCard} onPress={() => setSelectedCompleted(item)} activeOpacity={0.8}>
-                <View style={styles.completedIcon}><Ionicons name="checkmark-circle" size={21} color={GREEN} /></View>
-                <View style={styles.completedCopy}><Text style={styles.completedTitle}>{item.foodName || item.title || 'Food delivery'}</Text><Text style={styles.completedText}>{item.quantity || 'Quantity not specified'} · Delivered</Text></View>
-                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+              <TouchableOpacity key={item.id} style={[styles.completedCard, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setSelectedCompleted(item)} activeOpacity={0.8}>
+                <View style={[styles.completedIcon, { backgroundColor: colors.primarySoft }]}><Ionicons name="checkmark-circle" size={21} color={colors.primary} /></View>
+                <View style={styles.completedCopy}><Text style={[styles.completedTitle, { color: colors.text }]}>{item.foodName || item.title || 'Food delivery'}</Text><Text style={[styles.completedText, { color: colors.textSecondary }]}>{item.quantity || 'Quantity not specified'} · Delivered</Text></View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             ))}
           </View>
@@ -80,24 +83,24 @@ export default function AvailableDeliveriesScreen({ navigation }) {
       <Modal visible={Boolean(selectedCompleted)} transparent animationType="fade" onRequestClose={() => setSelectedCompleted(null)}>
         <View style={styles.modalBackdrop}>
           <BlurView intensity={80} tint="dark" style={[StyleSheet.absoluteFill, styles.modalBlur]} />
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <View><Text style={styles.modalEyebrow}>DELIVERY COMPLETE</Text><Text style={styles.modalTitle}>Delivery details</Text></View>
-              <TouchableOpacity onPress={() => setSelectedCompleted(null)} style={styles.closeButton} accessibilityLabel="Close delivery details"><Ionicons name="close" size={22} color="#374151" /></TouchableOpacity>
+              <View><Text style={[styles.modalEyebrow, { color: colors.primary }]}>DELIVERY COMPLETE</Text><Text style={[styles.modalTitle, { color: colors.text }]}>Delivery details</Text></View>
+              <TouchableOpacity onPress={() => setSelectedCompleted(null)} style={[styles.closeButton, { backgroundColor: colors.surfaceMuted }]} accessibilityLabel="Close delivery details"><Ionicons name="close" size={22} color={colors.text} /></TouchableOpacity>
             </View>
-            <View style={styles.modalSuccess}><View style={styles.modalSuccessIcon}><Ionicons name="checkmark-circle" size={27} color={GREEN} /></View><View style={styles.modalSuccessCopy}><Text style={styles.modalFood}>{selectedCompleted?.foodName || selectedCompleted?.title || 'Food delivery'}</Text><Text style={styles.modalStatus}>Successfully delivered</Text></View></View>
-            <View style={styles.modalDetails}>
-              <View style={styles.modalDetailRow}><Ionicons name="cube-outline" size={18} color={GREEN} /><Text style={styles.modalDetailLabel}>Quantity</Text><Text style={styles.modalDetailValue}>{selectedCompleted?.quantity || 'Not specified'}</Text></View>
-              <View style={styles.modalDetailRow}><Ionicons name="location-outline" size={18} color={GREEN} /><Text style={styles.modalDetailLabel}>Pickup</Text><Text style={styles.modalDetailValue}>{selectedCompleted?.pickupLocation || selectedCompleted?.pickupAddress || 'Not specified'}</Text></View>
-              <View style={styles.modalDetailRow}><Ionicons name="navigate-outline" size={18} color={GREEN} /><Text style={styles.modalDetailLabel}>Drop-off</Text><Text style={styles.modalDetailValue}>{dropoffFor(selectedCompleted || {})}</Text></View>
-              <View style={styles.modalDetailRow}><Ionicons name="person-outline" size={18} color={GREEN} /><Text style={styles.modalDetailLabel}>Recipient</Text><Text style={styles.modalDetailValue}>{selectedCompleted?.recipientName || selectedCompleted?.recipient || 'Recipient'}</Text></View>
-              <View style={styles.modalDetailRow}><Ionicons name="speedometer-outline" size={18} color={GREEN} /><Text style={styles.modalDetailLabel}>Distance</Text><Text style={styles.modalDetailValue}>{selectedCompleted?.distance || 'Not available'}</Text></View>
+            <View style={[styles.modalSuccess, { backgroundColor: colors.primarySoft }]}><View style={[styles.modalSuccessIcon, { backgroundColor: colors.surface }]}><Ionicons name="checkmark-circle" size={27} color={colors.primary} /></View><View style={styles.modalSuccessCopy}><Text style={[styles.modalFood, { color: colors.text }]}>{selectedCompleted?.foodName || selectedCompleted?.title || 'Food delivery'}</Text><Text style={[styles.modalStatus, { color: colors.primary }]}>Successfully delivered</Text></View></View>
+            <View style={[styles.modalDetails, { backgroundColor: colors.surfaceMuted }]}>
+              <View style={[styles.modalDetailRow, { borderBottomColor: colors.divider }]}><Ionicons name="cube-outline" size={18} color={colors.primary} /><Text style={[styles.modalDetailLabel, { color: colors.textSecondary }]}>Quantity</Text><Text style={[styles.modalDetailValue, { color: colors.text }]}>{selectedCompleted?.quantity || 'Not specified'}</Text></View>
+              <View style={[styles.modalDetailRow, { borderBottomColor: colors.divider }]}><Ionicons name="location-outline" size={18} color={colors.primary} /><Text style={[styles.modalDetailLabel, { color: colors.textSecondary }]}>Pickup</Text><Text style={[styles.modalDetailValue, { color: colors.text }]}>{selectedCompleted?.pickupLocation || selectedCompleted?.pickupAddress || 'Not specified'}</Text></View>
+              <View style={[styles.modalDetailRow, { borderBottomColor: colors.divider }]}><Ionicons name="navigate-outline" size={18} color={colors.primary} /><Text style={[styles.modalDetailLabel, { color: colors.textSecondary }]}>Drop-off</Text><Text style={[styles.modalDetailValue, { color: colors.text }]}>{dropoffFor(selectedCompleted || {})}</Text></View>
+              <View style={[styles.modalDetailRow, { borderBottomColor: colors.divider }]}><Ionicons name="person-outline" size={18} color={colors.primary} /><Text style={[styles.modalDetailLabel, { color: colors.textSecondary }]}>Recipient</Text><Text style={[styles.modalDetailValue, { color: colors.text }]}>{selectedCompleted?.recipientName || selectedCompleted?.recipient || 'Recipient'}</Text></View>
+              <View style={[styles.modalDetailRow, { borderBottomColor: colors.divider }]}><Ionicons name="speedometer-outline" size={18} color={colors.primary} /><Text style={[styles.modalDetailLabel, { color: colors.textSecondary }]}>Distance</Text><Text style={[styles.modalDetailValue, { color: colors.text }]}>{selectedCompleted?.distance || 'Not available'}</Text></View>
             </View>
             
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

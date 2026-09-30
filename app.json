@@ -10,7 +10,8 @@
     "plugins": [
       "expo-font",
       "expo-image",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-notifications"
     ],
     "splash": {
       "image": "./assets/splash.png",

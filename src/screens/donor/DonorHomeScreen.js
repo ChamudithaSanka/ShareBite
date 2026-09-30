@@ -1,12 +1,15 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { donationService } from '../../services/donationService';
 
 export default function DonorHomeScreen() {
   const navigation = useNavigation();
   const { user, userProfile } = useAuth();
+  const { colors } = useTheme();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,50 +49,52 @@ export default function DonorHomeScreen() {
   const name = userProfile?.name || 'Donor';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>Donor</Text>
-      <Text style={styles.title}>Welcome, {name}</Text>
-      <Text style={styles.role}>Role: {userProfile?.role || 'donor'}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Text style={[styles.eyebrow, { color: colors.primary }]}>Donor</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Welcome, {name}</Text>
+      <Text style={[styles.role, { color: colors.textSecondary }]}>Role: {userProfile?.role || 'donor'}</Text>
 
       <View style={styles.statsRow}>
-        <View style={[styles.statCard, styles.greenCard]}>
-          <Text style={styles.statValue}>{loading ? '—' : activeCount}</Text>
-          <Text style={styles.statLabel}>Active</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.primarySoft, borderColor: colors.border }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>{loading ? '-' : activeCount}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active</Text>
         </View>
-        <View style={[styles.statCard, styles.amberCard]}>
-          <Text style={styles.statValue}>{loading ? '—' : totalCount}</Text>
-          <Text style={styles.statLabel}>Total</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>{loading ? '-' : totalCount}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text>
         </View>
-        <View style={[styles.statCard, styles.blueCard]}>
-          <Text style={[styles.statValue, styles.blueValue]}>{loading ? '—' : mealsShared}</Text>
-          <Text style={styles.statLabel}>Meals shared</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>{loading ? '-' : mealsShared}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Meals shared</Text>
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Recent donations</Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Recent donations</Text>
         {loading ? (
-          <ActivityIndicator size="small" color="#1A7A4A" />
+          <ActivityIndicator size="small" color={colors.primary} />
         ) : donations.length === 0 ? (
-          <Text style={styles.emptyText}>No donations yet. Create your first one.</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No donations yet. Create your first one.</Text>
         ) : (
           donations.slice(0, 3).map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={styles.listItem}
+              style={[styles.listItem, { borderTopColor: colors.divider }]}
               onPress={() => navigation.navigate('DonationDetail', { donation: item })}
             >
               {item.photoUrl ? <Image source={{ uri: item.photoUrl }} style={styles.itemImage} /> : <View style={styles.itemImagePlaceholder}><Text style={styles.placeholderEmoji}>🍱</Text></View>}
-              <View>
-                <Text style={styles.itemName}>{item.foodName}</Text>
-                <Text style={styles.itemMeta}>{item.quantity} • {item.foodType}</Text>
+              <View style={styles.itemCopy}>
+                <Text style={[styles.itemName, { color: colors.text }]}>{item.foodName}</Text>
+                <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{item.quantity} • {item.foodType}</Text>
               </View>
-              <Text style={styles.itemStatus}>{item.status}</Text>
+              <Text style={[styles.itemStatus, { color: colors.primary }]}>{item.status}</Text>
             </TouchableOpacity>
           ))
         )}
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

@@ -2,15 +2,23 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { acceptDelivery, subscribeToDelivery } from '../../services/deliveryService';
+import { calculateDistance, coordinatesFromValue } from '../../utils';
 
 const GREEN = '#1A7A4A';
 const pickupFor = (delivery) => delivery.pickupLocation || delivery.pickupAddress || 'Pickup location unavailable';
 const dropoffFor = (delivery) => delivery.deliveryAddress || delivery.dropoffAddress || 'Drop-off location unavailable';
+const distanceFor = (delivery) => delivery.distance || calculateDistance(
+  coordinatesFromValue(delivery.pickupCoordinates) || coordinatesFromValue(delivery.pickupLocation),
+  delivery.deliveryCoordinates,
+) || 'Not available';
 
 export default function DeliveryDetailScreen({ route, navigation }) {
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
   const [delivery, setDelivery] = useState(route.params?.delivery || null);
   const [loading, setLoading] = useState(!delivery);
   const [accepting, setAccepting] = useState(false);
@@ -47,30 +55,32 @@ export default function DeliveryDetailScreen({ route, navigation }) {
     }
   };
 
-  if (loading) return <ActivityIndicator color={GREEN} style={styles.loader} />;
-  if (!delivery) return <Text style={styles.empty}>Delivery not found.</Text>;
+  if (loading) return <SafeAreaView style={{ backgroundColor: colors.background, flex: 1 }} edges={['top']}><ActivityIndicator color={colors.primary} style={styles.loader} /></SafeAreaView>;
+  if (!delivery) return <SafeAreaView style={{ backgroundColor: colors.background, flex: 1 }} edges={['top']}><Text style={[styles.empty, { color: colors.textSecondary, backgroundColor: colors.background }]}>Delivery not found.</Text></SafeAreaView>;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.eyebrow}>DELIVERY JOB</Text>
-      <Text style={styles.title}>{delivery.foodName || delivery.title || 'Food delivery'}</Text>
-      <Text style={styles.subtitle}>{delivery.quantity || 'Quantity not specified'} · {delivery.distance || 'Distance unavailable'}</Text>
-      <View style={styles.hero}><Text style={styles.heroEmoji}>📦</Text><Text style={styles.heroText}>Ready to help food reach its destination</Text></View>
-      <View style={styles.routeCard}>
-        <View style={styles.routeRow}><Text style={styles.routeIcon}>●</Text><View style={styles.routeCopy}><Text style={styles.label}>PICKUP FROM</Text><Text style={styles.value}>{pickupFor(delivery)}</Text><Text style={styles.subValue}>{delivery.donorName || delivery.donor || 'Donor'}</Text></View></View>
+    <SafeAreaView style={{ backgroundColor: colors.background, flex: 1 }} edges={['top']}>
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}> 
+      <Text style={[styles.eyebrow, { color: colors.primary }]}>DELIVERY JOB</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{delivery.foodName || delivery.title || 'Food delivery'}</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{delivery.quantity || 'Quantity not specified'} · {distanceFor(delivery)}</Text>
+      <View style={[styles.hero, { backgroundColor: colors.primarySoft }]}><Text style={styles.heroEmoji}>📦</Text><Text style={[styles.heroText, { color: colors.primary }]}>Ready to help food reach its destination</Text></View>
+      <View style={[styles.routeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.routeRow}><Text style={[styles.routeIcon, { color: colors.primary }]}>●</Text><View style={styles.routeCopy}><Text style={[styles.label, { color: colors.textMuted }]}>PICKUP FROM</Text><Text style={[styles.value, { color: colors.text }]}>{pickupFor(delivery)}</Text><Text style={[styles.subValue, { color: colors.textSecondary }]}>{delivery.donorName || delivery.donor || 'Donor'}</Text></View></View>
         <View style={styles.routeLine} />
-        <View style={styles.routeRow}><Text style={styles.routeIcon}>●</Text><View style={styles.routeCopy}><Text style={styles.label}>DELIVER TO</Text><Text style={styles.value}>{dropoffFor(delivery)}</Text><Text style={styles.subValue}>{delivery.recipientName || delivery.recipient || 'Recipient'}</Text></View></View>
+        <View style={styles.routeRow}><Text style={[styles.routeIcon, { color: colors.primary }]}>●</Text><View style={styles.routeCopy}><Text style={[styles.label, { color: colors.textMuted }]}>DELIVER TO</Text><Text style={[styles.value, { color: colors.text }]}>{dropoffFor(delivery)}</Text><Text style={[styles.subValue, { color: colors.textSecondary }]}>{delivery.recipientName || delivery.recipient || 'Recipient'}</Text></View></View>
       </View>
       <View style={styles.details}>
-        <Text style={styles.detailLabel}>Distance</Text><Text style={styles.detailValue}>{delivery.distance || 'Not available'}</Text>
-        <Text style={styles.detailLabel}>Deliver by</Text><Text style={styles.detailValue}>{delivery.pickupAvailability || delivery.deadline || 'As soon as possible'}</Text>
-        <Text style={styles.detailLabel}>Status</Text><Text style={styles.detailValue}>{delivery.status || 'pending'}</Text>
+        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Distance</Text><Text style={[styles.detailValue, { color: colors.text }]}>{distanceFor(delivery)}</Text>
+        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Deliver by</Text><Text style={[styles.detailValue, { color: colors.text }]}>{delivery.pickupAvailability || delivery.deadline || 'As soon as possible'}</Text>
+        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Status</Text><Text style={[styles.detailValue, { color: colors.text }]}>{delivery.status || 'pending'}</Text>
       </View>
       <TouchableOpacity style={[styles.button, accepting && styles.disabled]} onPress={handleAccept} disabled={accepting}>
-        {accepting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Accept delivery</Text>}
+        {accepting ? <ActivityIndicator color={isDark ? '#102218' : '#fff'} /> : <Text style={[styles.buttonText, { color: isDark ? '#102218' : '#fff' }]}>Accept delivery</Text>}
       </TouchableOpacity>
-      <TouchableOpacity style={styles.skip} onPress={() => navigation.goBack()}><Text style={styles.skipText}>Back to available jobs</Text></TouchableOpacity>
-    </ScrollView>
+      <TouchableOpacity style={styles.skip} onPress={() => navigation.goBack()}><Text style={[styles.skipText, { color: colors.textSecondary }]}>Back to available jobs</Text></TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

@@ -128,7 +128,11 @@ export default function FoodDetailScreen({ route, navigation }) {
         donorId: donation.donorId || null,
         donorName: donation.donorName || '',
         pickupLocation: donation.pickupLocation || '',
-        pickupCoordinates: donation.pickupCoordinates || null,
+        pickupCoordinates: donation.pickupCoordinates || (
+          donation.pickupLatitude != null && donation.pickupLongitude != null
+            ? { latitude: donation.pickupLatitude, longitude: donation.pickupLongitude }
+            : null
+        ),
         distance: donation.distance || '',
       });
       Alert.alert('Request submitted! 🎉', 'A volunteer will pick this up for you.', [

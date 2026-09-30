@@ -1,18 +1,25 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { subscribeToVolunteerDeliveries } from '../../services/deliveryService';
+import { donationService } from '../../services/donationService';
 
 const GREEN = '#1A7A4A';
+const ACTIVE_DELIVERY_STATUSES = ['assigned', 'picked_up', 'in_transit'];
 const ROLE_INFO = {
   donor: { label: 'Donor', emoji: '🤝', tint: '#E8F5EE', stat: 'Meals shared' },
   recipient: { label: 'Recipient', emoji: '🍽️', tint: '#FEF3C7', stat: 'Requests received' },
@@ -24,18 +31,96 @@ const MENU_ITEMS = [
   { icon: '✎', title: 'Edit profile', subtitle: 'Update your name and phone number', key: 'edit' },
   { icon: '⌖', title: 'Saved addresses', subtitle: 'Manage your pickup and delivery addresses', key: 'addresses' },
   { icon: '◉', title: 'Notifications', subtitle: 'Choose which updates you receive', key: 'notifications' },
-  { icon: '★', title: 'My impact', subtitle: 'See your contribution to the community', key: 'impact' },
-  { icon: '⚙', title: 'Settings', subtitle: 'Privacy and account preferences', key: 'settings' },
+  { icon: '◐', title: 'Appearance', subtitle: 'Choose light or dark mode', key: 'appearance' },
 ];
 
-export default function ProfileScreen() {
+const formatMemberSince = (createdAt) => {
+  if (!createdAt) return '-';
+
+  const date = typeof createdAt.toDate === 'function' ? createdAt.toDate() : new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return '-';
+
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+};
+
+export default function ProfileScreen({ navigation }) {
   const { user, userProfile, signOut, updateUserProfile } = useAuth();
+  const { colors, isDark, setDarkMode } = useTheme();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [addresses, setAddresses] = useState(Array.isArray(userProfile?.savedAddresses) ? userProfile.savedAddresses : []);
+  const [addressName, setAddressName] = useState('');
+  const [addressValue, setAddressValue] = useState('');
+  const [editingAddressIndex, setEditingAddressIndex] = useState(null);
+  const [deliveryStats, setDeliveryStats] = useState({ active: 0, completed: 0, loading: false });
+  const [donorStats, setDonorStats] = useState({ total: 0, active: 0, meals: 0, loading: false });
   const [name, setName] = useState(userProfile?.name || '');
   const [phone, setPhone] = useState(userProfile?.phone || '');
+  const userRole = userProfile?.role;
   const role = ROLE_INFO[userProfile?.role] || ROLE_INFO.recipient;
   const email = userProfile?.email || user?.email || 'No email added';
+  const visibleMenuItems = MENU_ITEMS.filter((item) => !(userRole === 'volunteer' && item.key === 'addresses') && !(userRole !== 'donor' && item.key === 'addresses'));
+
+  useEffect(() => {
+    setAddresses(Array.isArray(userProfile?.savedAddresses) ? userProfile.savedAddresses : []);
+  }, [userProfile?.savedAddresses]);
+
+  useEffect(() => {
+    if (userRole !== 'volunteer' || !user?.uid) {
+      setDeliveryStats({ active: 0, completed: 0, loading: false });
+    } else {
+      setDeliveryStats((current) => ({ ...current, loading: true }));
+      return subscribeToVolunteerDeliveries(
+        user.uid,
+        (deliveries) => {
+          setDeliveryStats({
+            active: deliveries.filter((delivery) => ACTIVE_DELIVERY_STATUSES.includes(delivery.status)).length,
+            completed: deliveries.filter((delivery) => delivery.status === 'delivered').length,
+            loading: false,
+          });
+        },
+        () => setDeliveryStats((current) => ({ ...current, loading: false })),
+      );
+    }
+
+    return undefined;
+  }, [user?.uid, userRole]);
+
+  useEffect(() => {
+    if (userRole !== 'donor' || !user?.uid) {
+      setDonorStats({ total: 0, active: 0, meals: 0, loading: false });
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadDonorStats = async () => {
+      setDonorStats((current) => ({ ...current, loading: true }));
+
+      try {
+        const donations = await donationService.getDonationsByDonor(user.uid);
+        if (cancelled) return;
+
+        setDonorStats({
+          total: donations.length,
+          active: donations.filter((donation) => ['available', 'pending_review'].includes(donation.status)).length,
+          meals: donations.reduce((total, donation) => total + (Number.parseInt(donation.quantity, 10) || 0), 0),
+          loading: false,
+        });
+      } catch (error) {
+        if (!cancelled) {
+          setDonorStats((current) => ({ ...current, loading: false }));
+        }
+      }
+    };
+
+    loadDonorStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, userRole]);
 
   const openEditor = () => {
     setName(userProfile?.name || '');
@@ -49,15 +134,23 @@ export default function ProfileScreen() {
       return;
     }
 
-    setSaving(true);
-    try {
-      await updateUserProfile({ name: name.trim(), phone: phone.trim() });
-      setEditing(false);
-    } catch (error) {
-      Alert.alert('Unable to save', 'Please check your connection and try again.');
-    } finally {
-      setSaving(false);
-    }
+    Alert.alert('Save profile changes?', 'Your name and phone number will be updated.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Save changes',
+        onPress: async () => {
+          setSaving(true);
+          try {
+            await updateUserProfile({ name: name.trim(), phone: phone.trim() });
+            setEditing(false);
+          } catch (error) {
+            Alert.alert('Unable to save', 'Please check your connection and try again.');
+          } finally {
+            setSaving(false);
+          }
+        },
+      },
+    ]);
   };
 
   const handleMenuPress = (key) => {
@@ -65,7 +158,94 @@ export default function ProfileScreen() {
       openEditor();
       return;
     }
+    if (key === 'addresses') {
+      if (userRole !== 'donor') {
+        Alert.alert('Coming soon', 'This profile section will be available in a future update.');
+        return;
+      }
+      setEditingAddressIndex(null);
+      setAddressName('');
+      setAddressValue('');
+      setAddressModalVisible(true);
+      return;
+    }
+    if (key === 'notifications' && userRole === 'volunteer') {
+      navigation.navigate('VolunteerNotifications');
+      return;
+    }
+    if (key === 'notifications' && userRole === 'donor') {
+      navigation.navigate('DonorNotifications');
+      return;
+    }
+    if (key === 'appearance') {
+      setDarkMode(!isDark);
+      return;
+    }
     Alert.alert('Coming soon', 'This profile section will be available in a future update.');
+  };
+
+  const resetAddressForm = () => {
+    setAddressName('');
+    setAddressValue('');
+    setEditingAddressIndex(null);
+  };
+
+  const saveAddress = async () => {
+    const trimmedValue = addressValue.trim();
+    if (!trimmedValue) {
+      Alert.alert('Address required', 'Please enter a pickup address or location.');
+      return;
+    }
+
+    const nextAddress = {
+      id: editingAddressIndex !== null ? addresses[editingAddressIndex]?.id || `addr-${Date.now()}` : `addr-${Date.now()}`,
+      label: addressName.trim() || 'Saved address',
+      value: trimmedValue,
+    };
+
+    const nextAddresses = editingAddressIndex !== null
+      ? addresses.map((address, index) => (index === editingAddressIndex ? nextAddress : address))
+      : [nextAddress, ...addresses];
+
+    Alert.alert('Save address?', 'This saved address will be stored in your donor profile.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Save address',
+        onPress: async () => {
+          try {
+            await updateUserProfile({ savedAddresses: nextAddresses });
+            setAddresses(nextAddresses);
+            resetAddressForm();
+            setAddressModalVisible(false);
+          } catch (error) {
+            Alert.alert('Unable to save', 'Please check your connection and try again.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const removeAddress = (index) => {
+    const target = addresses[index];
+    if (!target) return;
+
+    Alert.alert('Remove saved address?', `This will remove "${target.label || 'Saved address'}" from your donor profile.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          const nextAddresses = addresses.filter((_, addressIndex) => addressIndex !== index);
+
+          try {
+            await updateUserProfile({ savedAddresses: nextAddresses });
+            setAddresses(nextAddresses);
+          } catch (error) {
+            Alert.alert('Unable to remove', 'Please check your connection and try again.');
+          }
+        },
+      },
+    ]);
   };
 
   const confirmSignOut = () => {
@@ -76,81 +256,149 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.headerEyebrow}>ACCOUNT</Text>
-          <Text style={styles.title}>My profile</Text>
-          <Text style={styles.subtitle}>Your ShareBite community identity</Text>
+          <Text style={[styles.headerEyebrow, { color: colors.primary }]}>ACCOUNT</Text>
+          <Text style={[styles.title, { color: colors.text }]}>My profile</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Your ShareBite community identity</Text>
         </View>
 
-        <View style={styles.profileCard}>
+        <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={[styles.avatar, { backgroundColor: role.tint }]}>
             <Text style={styles.avatarText}>{role.emoji}</Text>
           </View>
           <View style={styles.identity}>
-            <Text style={styles.name}>{userProfile?.name || 'ShareBite member'}</Text>
-            <Text style={styles.email}>{email}</Text>
+            <Text style={[styles.name, { color: colors.text }]}>{userProfile?.name || 'ShareBite member'}</Text>
+            <Text style={[styles.email, { color: colors.textSecondary }]}>{email}</Text>
             <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>{role.label}</Text>
-              <Text style={styles.verified}>✓ Verified</Text>
+              <Text style={[styles.roleBadgeText, { color: colors.primary, backgroundColor: colors.primarySoft }]}>{role.label}</Text>
             </View>
           </View>
-          <Pressable accessibilityLabel="Edit profile" onPress={openEditor} style={styles.editButton}>
-            <Text style={styles.editButtonText}>Edit</Text>
-          </Pressable>
         </View>
 
         <View style={styles.impactCard}>
           <View>
             <Text style={styles.impactEyebrow}>COMMUNITY IMPACT</Text>
-            <Text style={styles.impactTitle}>Every action counts</Text>
-            <Text style={styles.impactSubtitle}>Thank you for helping good food go further.</Text>
+            <Text style={styles.impactTitle}>{userRole === 'volunteer' ? 'Your volunteer impact' : userRole === 'donor' ? 'Your donor impact' : 'Every action counts'}</Text>
+            <Text style={styles.impactSubtitle}>
+              {userRole === 'volunteer'
+                ? `${deliveryStats.loading ? '-' : deliveryStats.completed} deliveries completed so far. Every delivery helps good food go further.`
+                : userRole === 'donor'
+                  ? `${donorStats.loading ? 'Loading your recent impact...' : `${donorStats.total} donation${donorStats.total === 1 ? '' : 's'} shared so far. Every meal helps someone nearby.`}`
+                  : 'Thank you for helping good food go further.'}
+            </Text>
           </View>
           <Text style={styles.impactEmoji}>🌱</Text>
         </View>
 
-        <View style={styles.statsRow}>
-          <View style={styles.stat}><Text style={styles.statNumber}>12</Text><Text style={styles.statLabel}>{role.stat}</Text></View>
-          <View style={styles.stat}><Text style={styles.statNumber}>3</Text><Text style={styles.statLabel}>Active this month</Text></View>
-          <View style={styles.stat}><Text style={styles.statNumber}>2026</Text><Text style={styles.statLabel}>Member since</Text></View>
+        <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'volunteer' ? (deliveryStats.loading ? '-' : deliveryStats.completed) : userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.total) : 12}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'volunteer' ? role.stat : userRole === 'donor' ? 'Donation listings' : role.stat}</Text></View>
+          <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'volunteer' ? (deliveryStats.loading ? '-' : deliveryStats.active) : userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.active) : 3}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'volunteer' ? 'Active deliveries' : userRole === 'donor' ? 'Active listings' : 'Active this month'}</Text></View>
+          <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.meals) : formatMemberSince(userProfile?.createdAt)}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'donor' ? 'Meals shared' : 'Member since'}</Text></View>
         </View>
 
-        <Text style={styles.sectionTitle}>Profile & preferences</Text>
-        <View style={styles.menuCard}>
-          {MENU_ITEMS.map((item, index) => (
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile & preferences</Text>
+        <View style={[styles.menuCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {visibleMenuItems.map((item, index) => (
             <Pressable
               key={item.key}
               onPress={() => handleMenuPress(item.key)}
-              style={[styles.menuItem, index === MENU_ITEMS.length - 1 && styles.menuItemLast]}
+              style={[styles.menuItem, { borderBottomColor: colors.divider }, index === visibleMenuItems.length - 1 && styles.menuItemLast]}
               accessibilityRole="button"
             >
-              <View style={styles.menuIcon}><Text style={styles.menuIconText}>{item.icon}</Text></View>
-              <View style={styles.menuCopy}><Text style={styles.menuTitle}>{item.title}</Text><Text style={styles.menuSubtitle}>{item.subtitle}</Text></View>
-              <Text style={styles.chevron}>›</Text>
+              <View style={[styles.menuIcon, { backgroundColor: colors.primarySoft }]}><Text style={[styles.menuIconText, { color: colors.primary }]}>{item.icon}</Text></View>
+              <View style={styles.menuCopy}><Text style={[styles.menuTitle, { color: colors.text }]}>{item.title}</Text><Text style={[styles.menuSubtitle, { color: colors.textMuted }]}>{item.subtitle}</Text></View>
+              {item.key === 'appearance' ? <Switch style={{ transform: [{ translateX: -4 }, { translateY: 20 }] }} value={isDark} onValueChange={setDarkMode} trackColor={{ false: '#D1D5DB', true: '#A7DDBA' }} thumbColor={isDark ? colors.primary : '#F9FAFB'} accessibilityLabel="Dark mode" /> : <Text style={[styles.chevron, { color: colors.textMuted }]}>›</Text>}
             </Pressable>
           ))}
         </View>
 
-        <Pressable onPress={confirmSignOut} style={styles.signOutButton} accessibilityRole="button">
-          <Text style={styles.signOutIcon}>↪</Text>
-          <Text style={styles.signOutText}>Sign out</Text>
+        <Pressable onPress={confirmSignOut} style={[styles.signOutButton, { backgroundColor: isDark ? '#3A211A' : '#FFF7F4', borderColor: isDark ? '#A94E32' : '#F2B8A7' }]} accessibilityRole="button">
+          <Text style={[styles.signOutIcon, { color: colors.danger }]}>↪</Text>
+          <Text style={[styles.signOutText, { color: colors.danger }]}>Sign out</Text>
         </Pressable>
-        <Text style={styles.version}>ShareBite · Your community, shared</Text>
+        <Text style={[styles.version, { color: colors.textMuted }]}>ShareBite · Your community, shared</Text>
       </ScrollView>
+
+      <Modal visible={addressModalVisible} transparent animationType="slide" onRequestClose={() => { resetAddressForm(); setAddressModalVisible(false); }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'position' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 4 : 0}
+          style={styles.modalBackdrop}
+        >
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.modalScrollContent}
+          >
+            <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>Saved addresses</Text>
+                  <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Store your common pickup locations.</Text>
+                </View>
+                <Pressable onPress={() => { resetAddressForm(); setAddressModalVisible(false); }}>
+                  <Text style={[styles.close, { color: colors.textSecondary }]}>×</Text>
+                </Pressable>
+              </View>
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Label</Text>
+              <TextInput value={addressName} onChangeText={setAddressName} style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholder="Home, Office, Community hall" placeholderTextColor={colors.textMuted} />
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Address</Text>
+              <TextInput value={addressValue} onChangeText={setAddressValue} multiline style={[styles.input, styles.addressTextarea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholder="123 Main Street, Springfield" placeholderTextColor={colors.textMuted} />
+
+              <Pressable onPress={saveAddress} style={[styles.saveButton, { marginTop: 18 }]}>
+                <Text style={[styles.saveButtonText, { color: colors.surface }]}>{editingAddressIndex !== null ? 'Save address' : 'Add address'}</Text>
+              </Pressable>
+
+              {addresses.length > 0 && (
+                <View style={styles.addressList}>
+                  <Text style={[styles.addressListTitle, { color: colors.textSecondary }]}>Saved list</Text>
+                  {addresses.map((address, index) => (
+                    <View key={address.id || `${address.label}-${index}`} style={[styles.addressItem, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+                      <View style={styles.addressMeta}>
+                        <Text style={[styles.addressLabel, { color: colors.text }]}>{address.label || 'Saved address'}</Text>
+                        <Text style={[styles.addressValue, { color: colors.textSecondary }]}>{address.value}</Text>
+                      </View>
+                      <View style={styles.addressActions}>
+                        <Pressable onPress={() => {
+                          setAddressName(address.label || '');
+                          setAddressValue(address.value || '');
+                          setEditingAddressIndex(index);
+                        }} style={styles.addressActionButton}>
+                          <Text style={[styles.addressActionText, { color: colors.primary }]}>Edit</Text>
+                        </Pressable>
+                        <Pressable onPress={() => removeAddress(index)} style={styles.addressActionButton}>
+                          <Text style={[styles.addressActionText, { color: colors.danger }]}>Remove</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {addresses.length === 0 && (
+                <Text style={[styles.noAddressesText, { color: colors.textMuted, marginTop: 16 }]}>No saved addresses yet.</Text>
+              )}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}><View><Text style={styles.modalTitle}>Edit profile</Text><Text style={styles.modalSubtitle}>Keep your contact details up to date.</Text></View><Pressable onPress={() => setEditing(false)}><Text style={styles.close}>×</Text></Pressable></View>
-            <Text style={styles.inputLabel}>Full name</Text>
-            <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your full name" autoCapitalize="words" />
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput value={email} style={[styles.input, styles.inputDisabled]} editable={false} />
-            <Text style={styles.inputLabel}>Phone number</Text>
-            <TextInput value={phone} onChangeText={setPhone} style={styles.input} placeholder="Your phone number" keyboardType="phone-pad" />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeader}><View><Text style={[styles.modalTitle, { color: colors.text }]}>Edit profile</Text><Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Keep your contact details up to date.</Text></View><Pressable onPress={() => setEditing(false)}><Text style={[styles.close, { color: colors.textSecondary }]}>×</Text></Pressable></View>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Full name</Text>
+            <TextInput value={name} onChangeText={setName} style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholder="Your full name" placeholderTextColor={colors.textMuted} autoCapitalize="words" />
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email</Text>
+            <TextInput value={email} style={[styles.input, styles.inputDisabled, { backgroundColor: colors.surfaceMuted, borderColor: colors.border, color: colors.textSecondary }]} editable={false} />
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Phone number</Text>
+            <TextInput value={phone} onChangeText={setPhone} style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholder="Your phone number" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
             <Pressable onPress={saveProfile} disabled={saving} style={[styles.saveButton, saving && styles.disabledButton]}>
-              <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save changes'}</Text>
+              <Text style={[styles.saveButtonText, { color: colors.surface }]}>{saving ? 'Saving...' : 'Save changes'}</Text>
             </Pressable>
           </View>
         </View>
@@ -162,7 +410,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   scroll: { flex: 1 },
-  content: { padding: 20, paddingBottom: 36 },
+  content: { padding: 20, paddingBottom: 132 },
   header: { marginBottom: 18 },
   headerEyebrow: { color: GREEN, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 5 },
   title: { color: '#111827', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
@@ -202,6 +450,7 @@ const styles = StyleSheet.create({
   signOutText: { color: '#E05A2B', fontSize: 14, fontWeight: '700' },
   version: { color: '#9CA3AF', fontSize: 11, marginTop: 18, textAlign: 'center' },
   modalBackdrop: { backgroundColor: 'rgba(17, 24, 39, 0.45)', flex: 1, justifyContent: 'flex-end' },
+  modalScrollContent: { paddingBottom: 24 },
   modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 34 },
   modalHeader: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   modalTitle: { color: '#111827', fontSize: 21, fontWeight: '800' },
@@ -210,6 +459,17 @@ const styles = StyleSheet.create({
   inputLabel: { color: '#374151', fontSize: 13, fontWeight: '700', marginBottom: 6, marginTop: 12 },
   input: { borderColor: '#D1D5DB', borderRadius: 12, borderWidth: 1.5, color: '#111827', fontSize: 15, paddingHorizontal: 13, paddingVertical: 12 },
   inputDisabled: { backgroundColor: '#F3F4F6', color: '#6B7280' },
+  addressTextarea: { minHeight: 84, textAlignVertical: 'top' },
+  addressList: { marginTop: 18 },
+  addressListTitle: { fontSize: 12, fontWeight: '700', marginBottom: 10, letterSpacing: 0.6 },
+  addressItem: { alignItems: 'flex-start', borderColor: '#E5E7EB', borderRadius: 12, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, padding: 12 },
+  addressMeta: { flex: 1, marginRight: 12 },
+  addressLabel: { fontSize: 14, fontWeight: '700' },
+  addressValue: { fontSize: 12, marginTop: 4, lineHeight: 18 },
+  addressActions: { alignItems: 'flex-end', justifyContent: 'center' },
+  addressActionButton: { marginTop: 4 },
+  addressActionText: { fontSize: 12, fontWeight: '700' },
+  noAddressesText: { fontSize: 13, textAlign: 'center' },
   saveButton: { alignItems: 'center', backgroundColor: GREEN, borderRadius: 14, marginTop: 22, paddingVertical: 15 },
   saveButtonText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   disabledButton: { opacity: 0.6 },

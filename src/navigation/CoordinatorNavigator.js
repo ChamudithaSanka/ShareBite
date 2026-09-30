@@ -68,7 +68,6 @@ export default function CoordinatorNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         animation: 'fade',
-        popToTopOnBlur: true,
         tabBarActiveTintColor: 'blue',
         tabBarInactiveTintColor: 'black',
         tabBarStyle: {

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { subscribeToVolunteerDeliveries } from '../../services/deliveryService';
 
 const GREEN = '#1A7A4A';
@@ -9,6 +11,7 @@ const ACTIVE_STATUSES = ['assigned', 'picked_up', 'in_transit'];
 
 export default function VolunteerHomeScreen({ navigation }) {
   const { user, userProfile } = useAuth();
+  const { colors, isDark } = useTheme();
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
   const name = userProfile?.name || 'Volunteer';
@@ -23,14 +26,15 @@ export default function VolunteerHomeScreen({ navigation }) {
   ), [user?.uid]);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <View><Text style={styles.greeting}>Ready to help,</Text><Text style={styles.title}>{name}</Text><Text style={styles.role}>Volunteer</Text></View>
+        <View><Text style={[styles.greeting, { color: colors.textSecondary }]}>Ready to help,</Text><Text style={[styles.title, { color: colors.text }]}>{name}</Text><Text style={[styles.role, { color: colors.primary }]}>Volunteer</Text></View>
         
       </View>
-      <View style={styles.statsRow}>
-        <View style={styles.stat}><View style={[styles.statIcon, styles.statIconGreen]}><Ionicons name="cube-outline" size={17} color={GREEN} /></View><View><Text style={styles.statNumber}>{loading ? '-' : active.length}</Text><Text style={styles.statLabel}>Active jobs</Text></View></View>
-        <View style={styles.stat}><View style={[styles.statIcon, styles.statIconOrange]}><Ionicons name="restaurant-outline" size={17} color="#C96A2D" /></View><View><Text style={styles.statNumber}>{loading ? '-' : completed.length}</Text><Text style={styles.statLabel}>Completed</Text></View></View>
+      <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.stat}><View style={[styles.statIcon, styles.statIconGreen]}><Ionicons name="cube-outline" size={17} color={colors.primary} /></View><View><Text style={[styles.statNumber, { color: colors.text }]}>{loading ? '-' : active.length}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active jobs</Text></View></View>
+        <View style={styles.stat}><View style={[styles.statIcon, styles.statIconOrange]}><Ionicons name="restaurant-outline" size={17} color="#C96A2D" /></View><View><Text style={[styles.statNumber, { color: colors.text }]}>{loading ? '-' : completed.length}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Completed</Text></View></View>
       </View>
       {activeDelivery ? (
         <TouchableOpacity style={styles.activeCard} onPress={() => navigation.navigate('Active')}>
@@ -53,24 +57,26 @@ export default function VolunteerHomeScreen({ navigation }) {
           </View>
         </TouchableOpacity>
       ) : (
-        <View style={styles.emptyCard}><Text style={styles.emptyTitle}>Ready for your next delivery?</Text><Text style={styles.emptyText}>Browse available jobs and help a neighbour today.</Text><TouchableOpacity onPress={() => navigation.navigate('Jobs')}><Text style={styles.browseLink}>Browse available jobs  ›</Text></TouchableOpacity></View>
+        <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.emptyTitle, { color: colors.text }]}>Ready for your next delivery?</Text><Text style={[styles.emptyText, { color: colors.textSecondary }]}>Browse available jobs and help a neighbour today.</Text><TouchableOpacity onPress={() => navigation.navigate('Jobs')}><Text style={styles.browseLink}>Browse available jobs  ›</Text></TouchableOpacity></View>
       )}
-      <View style={styles.contributionHeader}><Text style={styles.sectionTitle}>Your contribution</Text><Text style={styles.contributionCaption}>COMMUNITY IMPACT</Text></View>
-      <View style={styles.contributionCard}>
+      <View style={styles.contributionHeader}><Text style={[styles.sectionTitle, { color: isDark ? '#F3F7F4' : colors.text }]}>Your contribution</Text><Text style={[styles.contributionCaption, { color: colors.textMuted }]}>COMMUNITY IMPACT</Text></View>
+      <View style={[styles.contributionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.contributionTop}>
-          <View style={styles.contributionIcon}><Ionicons name="nutrition-outline" size={22} color={GREEN} /></View>
-          <View style={styles.contributionCopy}><Text style={styles.contributionTitle}>Good food, further</Text><Text style={styles.contributionText}>Every delivery helps reduce food waste.</Text></View>
+          <View style={[styles.contributionIcon, { backgroundColor: colors.primarySoft }]}><Ionicons name="nutrition-outline" size={22} color={colors.primary} /></View>
+          <View style={styles.contributionCopy}><Text style={[styles.contributionTitle, { color: colors.text }]}>Good food, further</Text><Text style={[styles.contributionText, { color: colors.textSecondary }]}>Every delivery helps reduce food waste.</Text></View>
           <Ionicons name="sparkles-outline" size={21} color="#D28A3E" />
         </View>
-        <View style={styles.impactDivider} />
-        <View style={styles.impactMetric}><Text style={styles.impactNumber}>{completed.length}</Text><View><Text style={styles.impactLabel}>deliveries completed</Text><Text style={styles.impactNote}>Your contribution so far</Text></View></View>
+        <View style={[styles.impactDivider, { backgroundColor: colors.divider }]} />
+        <View style={styles.impactMetric}><Text style={[styles.impactNumber, { color: colors.primary }]}>{completed.length}</Text><View><Text style={[styles.impactLabel, { color: isDark ? '#F3F7F4' : colors.text }]}>deliveries completed</Text><Text style={[styles.impactNote, { color: colors.textMuted }]}>Your contribution so far</Text></View></View>
       </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { backgroundColor: '#F9FAFB', flex: 1, padding: 20, paddingBottom: 120 },
+  scrollContent: { paddingBottom: 132 },
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 22, marginTop: 8 },
   emoji: { fontSize: 28 },
   avatar: { alignItems: 'center', backgroundColor: '#E8F5EE', borderRadius: 28, height: 56, justifyContent: 'center', width: 56 },
