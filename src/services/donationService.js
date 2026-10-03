@@ -1,19 +1,30 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
-  updateDoc,
   where,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { db } from '../config/firebase';
 import { storage } from '../config/firebase';
+import { formatFoodQuantity } from '../utils/quantity';
+
+const ACTIVE_REQUEST_STATUSES = ['pending', 'approved', 'assigned', 'picked_up', 'in_transit', 'at_recipient'];
+
+const getActiveRequestsForDonation = async (donationId) => {
+  const requestsQuery = query(
+    collection(db, 'requests'),
+    where('donationId', '==', donationId),
+  );
+  const snapshot = await getDocs(requestsQuery);
+  return snapshot.docs.filter((request) => ACTIVE_REQUEST_STATUSES.includes(request.data().status));
+};
 
 const subscribeToAvailableDonations = (onData, onError) => {
   const donationsQuery = query(collection(db, 'donations'), where('status', '==', 'available'));
@@ -76,6 +87,7 @@ export const donationService = {
     const payload = {
       ...donationData,
       donorId: donationData.donorId,
+      totalQuantityAmount: donationData.totalQuantityAmount ?? donationData.quantityAmount ?? null,
       status: donationData.status || 'available',
       createdAt: serverTimestamp(),
     };
@@ -95,13 +107,101 @@ export const donationService = {
   },
 
   async updateDonationStatus(donationId, status) {
-    const ref = doc(db, 'donations', donationId);
-    await updateDoc(ref, { status });
+    const donationRef = doc(db, 'donations', donationId);
+    const activeRequests = await getActiveRequestsForDonation(donationId);
+    await runTransaction(db, async (transaction) => {
+      const donationSnapshot = await transaction.get(donationRef);
+      if (!donationSnapshot.exists()) throw new Error('Donation not found.');
+      const donation = donationSnapshot.data();
+      if (donation.status === status) return;
+
+      const inventoryRef = donation.inventoryId ? doc(db, 'inventory', donation.inventoryId) : null;
+      const inventorySnapshot = inventoryRef ? await transaction.get(inventoryRef) : null;
+
+      if (activeRequests.length
+        || (Number(donation.activeRequestCount) || 0) > 0
+        || (Number(donation.reservedQuantityAmount) || 0) > 0) {
+        const error = new Error('Donation status cannot change while recipient requests are active.');
+        error.code = 'donation-has-active-requests';
+        throw error;
+      }
+
+      transaction.update(donationRef, { status });
+      if (inventoryRef && inventorySnapshot?.exists()) {
+        transaction.update(inventoryRef, {
+          status: status === 'available' ? 'available' : 'out_of_stock',
+          updatedAt: serverTimestamp(),
+        });
+      }
+    });
+  },
+
+  async updateDonationQuantity(donationId, quantityAmount, quantityUnit) {
+    const donationRef = doc(db, 'donations', donationId);
+    const activeRequests = await getActiveRequestsForDonation(donationId);
+    const quantity = formatFoodQuantity(quantityAmount, quantityUnit);
+    if (!quantity) {
+      const error = new Error('Enter a supported positive quantity.');
+      error.code = 'invalid-donation-quantity';
+      throw error;
+    }
+
+    await runTransaction(db, async (transaction) => {
+      const donationSnapshot = await transaction.get(donationRef);
+      if (!donationSnapshot.exists()) throw new Error('Donation not found.');
+      const donation = donationSnapshot.data();
+      if (activeRequests.length
+        || (Number(donation.activeRequestCount) || 0) > 0
+        || (Number(donation.reservedQuantityAmount) || 0) > 0) {
+        const error = new Error('Quantity cannot change while recipient requests are active.');
+        error.code = 'donation-has-active-requests';
+        throw error;
+      }
+
+      const inventoryRef = donation.inventoryId ? doc(db, 'inventory', donation.inventoryId) : null;
+      const inventorySnapshot = inventoryRef ? await transaction.get(inventoryRef) : null;
+      const timestamp = serverTimestamp();
+      transaction.update(donationRef, {
+        quantityAmount,
+        totalQuantityAmount: quantityAmount,
+        quantityUnit,
+        quantity,
+        updatedAt: timestamp,
+      });
+      if (inventoryRef && inventorySnapshot?.exists()) {
+        transaction.update(inventoryRef, {
+          quantityAmount,
+          totalQuantityAmount: quantityAmount,
+          quantityUnit,
+          quantity,
+          status: 'available',
+          updatedAt: timestamp,
+        });
+      }
+    });
   },
 
   async deleteDonation(donationId) {
-    const ref = doc(db, 'donations', donationId);
-    await deleteDoc(ref);
+    const donationRef = doc(db, 'donations', donationId);
+    const activeRequests = await getActiveRequestsForDonation(donationId);
+    await runTransaction(db, async (transaction) => {
+      const donationSnapshot = await transaction.get(donationRef);
+      if (!donationSnapshot.exists()) return;
+
+      const donation = donationSnapshot.data();
+      if (activeRequests.length
+        || (Number(donation.activeRequestCount) || 0) > 0
+        || (Number(donation.reservedQuantityAmount) || 0) > 0) {
+        const error = new Error('Donation cannot be deleted while recipient requests are active.');
+        error.code = 'donation-has-active-requests';
+        throw error;
+      }
+
+      const inventoryRef = donation.inventoryId ? doc(db, 'inventory', donation.inventoryId) : null;
+      const inventorySnapshot = inventoryRef ? await transaction.get(inventoryRef) : null;
+      if (inventoryRef && inventorySnapshot?.exists()) transaction.delete(inventoryRef);
+      transaction.delete(donationRef);
+    });
   },
   subscribeToAvailableDonations,
   subscribeToDonation,

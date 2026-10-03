@@ -1,22 +1,27 @@
-import React, { useCallback, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
-  ScrollView,
-  StatusBar,
   StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../context/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 import {
-  getInventoryCount,
-  getPendingDonationCount,
-  getPendingRequestCount,
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedSafeAreaView as SafeAreaView,
+  ThemedScrollView as ScrollView,
+  ThemedStatusBar as StatusBar,
+  ThemedText as Text,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
+import RoleGreeting from '../../components/RoleGreeting';
+import {
+  subscribeToPendingDonations,
+  subscribeToPendingRequests,
 } from '../../services/coordinatorService';
+import { subscribeToInventory } from '../../services/inventoryService';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -77,52 +82,71 @@ function ActionRow({ emoji, bg, title, sub, onPress }) {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function CoordinatorHomeScreen() {
   const navigation = useNavigation();
-  const { userProfile, signOut } = useAuth();
-  const name = userProfile?.name || 'Coordinator';
+  const { userProfile } = useAuth();
+  const { colors } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
 
   const [counts,  setCounts]  = useState({ pending: 0, inventory: 0, requests: 0 });
   const [loading, setLoading] = useState(true);
+  const [countsError, setCountsError] = useState('');
 
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      const load = async () => {
-        if (alive) setLoading(true);
-        try {
-          const [pending, inventory, requests] = await Promise.all([
-            getPendingDonationCount(),
-            getInventoryCount(),
-            getPendingRequestCount(),
-          ]);
-          if (alive) setCounts({ pending, inventory, requests });
-        } catch (e) {
-          console.error('Coordinator counts failed:', e);
-        } finally {
-          if (alive) setLoading(false);
-        }
-      };
-      load();
-      return () => { alive = false; };
-    }, [])
-  );
+  useEffect(() => {
+    let active = true;
+    const loadedSources = new Set();
+    const setCount = (source, key, value) => {
+      if (!active) return;
+      loadedSources.add(source);
+      setCounts((current) => ({ ...current, [key]: value }));
+      if (loadedSources.size === 3) setLoading(false);
+    };
+    const setSourceError = (source) => {
+      if (!active) return;
+      loadedSources.add(source);
+      setCountsError('Some dashboard counts could not be loaded.');
+      if (loadedSources.size === 3) setLoading(false);
+    };
+
+    const unsubscribeDonations = subscribeToPendingDonations(
+      (items) => setCount('donations', 'pending', items.length),
+      () => setSourceError('donations'),
+    );
+    const unsubscribeInventory = subscribeToInventory(
+      (items) => setCount('inventory', 'inventory', items.filter((item) => item.status === 'available').length),
+      () => setSourceError('inventory'),
+    );
+    const unsubscribeRequests = subscribeToPendingRequests(
+      (items) => setCount('requests', 'requests', items.length),
+      () => setSourceError('requests'),
+    );
+
+    return () => {
+      active = false;
+      unsubscribeDonations();
+      unsubscribeInventory();
+      unsubscribeRequests();
+    };
+  }, []);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={C.white} />
       <ScrollView
         style={s.scroll}
-        contentContainerStyle={s.content}
+        contentContainerStyle={[s.content, { paddingBottom: tabBarContentPadding }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Greeting header ── */}
         <View style={s.greeting}>
           <View>
-            <Text style={s.greetSub}>Good day,</Text>
-            <Text style={s.greetName}>{name} 👋</Text>
-            <Text style={s.greetRole}>Community Food Coordinator</Text>
-          </View>
-          <View style={s.avatar}>
-            <Text style={{ fontSize: 26 }}>👨‍💼</Text>
+            <RoleGreeting
+              greeting="Good day,"
+              name={userProfile?.name}
+              fallbackName="Coordinator"
+              role="Community Food Coordinator"
+              textColor={colors.text}
+              secondaryColor={colors.textSecondary}
+              accentColor={colors.primary}
+            />
           </View>
         </View>
 
@@ -131,6 +155,7 @@ export default function CoordinatorHomeScreen() {
           <Text style={s.bannerTitle}>Dashboard overview</Text>
           <Text style={s.bannerSub}>Tap a card to navigate</Text>
         </View>
+        {countsError ? <Text style={s.countsError}>{countsError}</Text> : null}
 
         {/* ── Stat cards ── */}
         {loading ? (
@@ -185,10 +210,6 @@ export default function CoordinatorHomeScreen() {
           />
         </View>
 
-        {/* ── Sign out ── */}
-        <TouchableOpacity style={s.signOutBtn} onPress={signOut} activeOpacity={0.7}>
-          <Text style={s.signOutText}>Sign out</Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -211,11 +232,6 @@ const s = StyleSheet.create({
   greetSub:  { fontSize: 13, color: C.gray500, marginBottom: 2 },
   greetName: { fontSize: 22, fontWeight: '800', color: C.gray900, letterSpacing: -0.3 },
   greetRole: { fontSize: 12, color: C.green, fontWeight: '600', marginTop: 3 },
-  avatar: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: C.greenLight,
-    alignItems: 'center', justifyContent: 'center',
-  },
 
   // Banner
   banner: {
@@ -226,6 +242,7 @@ const s = StyleSheet.create({
   },
   bannerTitle: { fontSize: 15, fontWeight: '700', color: C.white },
   bannerSub:   { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 3 },
+  countsError: { color: C.red, fontSize: 12, marginBottom: 12 },
 
   // Stats
   loaderRow: { alignItems: 'center', paddingVertical: 24 },
@@ -280,7 +297,4 @@ const s = StyleSheet.create({
   actionArrow: { fontSize: 22, color: C.gray400 },
   divider: { height: 1, backgroundColor: C.gray200, marginLeft: 72 },
 
-  // Sign out
-  signOutBtn: { alignItems: 'center', paddingVertical: 14 },
-  signOutText: { fontSize: 14, color: C.red, fontWeight: '600' },
 });

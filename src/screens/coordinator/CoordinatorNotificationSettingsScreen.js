@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,33 +7,26 @@ import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 
 const DEFAULT_PREFERENCES = {
-  donationReviewUpdates: true,
-  newRequests: true,
-  deliveryStatusUpdates: true,
+  coordinatorPendingDonations: true,
+  coordinatorPendingRequests: true,
 };
 
 const OPTIONS = [
   {
-    key: 'donationReviewUpdates',
-    icon: 'checkmark-circle-outline',
-    title: 'Donation review updates',
-    subtitle: 'Know when a coordinator approves or declines your donation.',
+    key: 'coordinatorPendingDonations',
+    icon: 'cube-outline',
+    title: 'Storable donations',
+    subtitle: 'Get an alert when a donation needs review.',
   },
   {
-    key: 'newRequests',
-    icon: 'mail-unread-outline',
-    title: 'New recipient requests',
-    subtitle: 'Get notified when someone requests your donation.',
-  },
-  {
-    key: 'deliveryStatusUpdates',
-    icon: 'bicycle-outline',
-    title: 'Delivery updates',
-    subtitle: 'Follow pickup and delivery progress.',
+    key: 'coordinatorPendingRequests',
+    icon: 'clipboard-outline',
+    title: 'Recipient requests',
+    subtitle: 'Get an alert when a recipient request needs approval.',
   },
 ];
 
-export default function DonorNotificationSettingsScreen({ navigation }) {
+export default function CoordinatorNotificationSettingsScreen({ navigation }) {
   const { userProfile, updateUserProfile } = useAuth();
   const { colors, isDark } = useTheme();
   const tabBarContentPadding = useTabBarContentPadding();
@@ -43,19 +36,24 @@ export default function DonorNotificationSettingsScreen({ navigation }) {
   });
   const [saving, setSaving] = useState(false);
 
-  const togglePreference = (key) => {
-    setPreferences((current) => ({ ...current, [key]: !current[key] }));
-  };
+  useEffect(() => {
+    setPreferences({ ...DEFAULT_PREFERENCES, ...(userProfile?.notificationPreferences || {}) });
+  }, [userProfile?.notificationPreferences]);
 
   const savePreferences = () => {
-    Alert.alert('Save notification preferences?', 'Your donation notification choices will be updated.', [
+    Alert.alert('Save notification preferences?', 'Your coordinator alert choices will be updated.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Save changes',
         onPress: async () => {
           setSaving(true);
           try {
-            await updateUserProfile({ notificationPreferences: preferences });
+            await updateUserProfile({
+              notificationPreferences: {
+                ...(userProfile?.notificationPreferences || {}),
+                ...preferences,
+              },
+            });
             Alert.alert('Preferences saved', 'Your notification choices have been updated.');
           } catch (error) {
             Alert.alert('Unable to save', 'Please check your connection and try again.');
@@ -85,7 +83,7 @@ export default function DonorNotificationSettingsScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.intro, { color: colors.textSecondary }]}>Choose which donation updates you want to receive.</Text>
+        <Text style={[styles.intro, { color: colors.textSecondary }]}>Choose which coordinator queue updates you want.</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {OPTIONS.map((option, index) => (
             <React.Fragment key={option.key}>
@@ -100,7 +98,7 @@ export default function DonorNotificationSettingsScreen({ navigation }) {
                 </View>
                 <Switch
                   value={preferences[option.key]}
-                  onValueChange={() => togglePreference(option.key)}
+                  onValueChange={() => setPreferences((current) => ({ ...current, [option.key]: !current[option.key] }))}
                   trackColor={{ false: '#D1D5DB', true: '#A7DDBA' }}
                   thumbColor={preferences[option.key] ? colors.primary : '#F9FAFB'}
                   accessibilityLabel={`${option.title} notifications`}
@@ -110,7 +108,7 @@ export default function DonorNotificationSettingsScreen({ navigation }) {
           ))}
         </View>
 
-        <Text style={[styles.note, { color: colors.textMuted }]}>These preferences are saved to your ShareBite account. Local alerts require the app to be open; remote push notifications are not enabled.</Text>
+        <Text style={[styles.note, { color: colors.textMuted }]}>Local alerts appear while ShareBite is open. Remote push notifications are not enabled.</Text>
         <Pressable
           onPress={savePreferences}
           disabled={saving}
@@ -133,7 +131,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 27, fontWeight: '800', marginTop: 4 },
   content: { paddingBottom: 120 },
   intro: { fontSize: 14, lineHeight: 20, marginBottom: 14 },
-  card: { borderRadius: 17, borderWidth: 1, paddingHorizontal: 14 },
+  card: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14 },
   option: { alignItems: 'center', flexDirection: 'row', minHeight: 88 },
   optionIcon: { alignItems: 'center', borderRadius: 12, height: 42, justifyContent: 'center', width: 42 },
   optionCopy: { flex: 1, marginHorizontal: 11 },
@@ -141,7 +139,7 @@ const styles = StyleSheet.create({
   optionSubtitle: { fontSize: 11, lineHeight: 16, marginTop: 3 },
   separator: { height: 1 },
   note: { fontSize: 11, lineHeight: 16, marginTop: 16 },
-  saveButton: { alignItems: 'center', borderRadius: 14, marginTop: 22, paddingVertical: 15 },
+  saveButton: { alignItems: 'center', borderRadius: 12, marginTop: 22, paddingVertical: 15 },
   saveButtonText: { fontSize: 15, fontWeight: '800' },
   disabledButton: { opacity: 0.6 },
 });

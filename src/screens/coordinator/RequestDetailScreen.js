@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Platform,
-  ScrollView,
-  StatusBar,
   StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedSafeAreaView as SafeAreaView,
+  ThemedScrollView as ScrollView,
+  ThemedStatusBar as StatusBar,
+  ThemedText as Text,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
+import { useTabBarContentPadding } from '../../hooks';
 import { approveRequest, declineRequest } from '../../services/coordinatorService';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -58,6 +61,7 @@ function InfoRow({ label, value, last }) {
 export default function RequestDetailScreen() {
   const navigation  = useNavigation();
   const route       = useRoute();
+  const tabBarContentPadding = useTabBarContentPadding();
   const requestItem = route.params?.request;
 
   const [submitting, setSubmitting] = useState(false);
@@ -76,8 +80,27 @@ export default function RequestDetailScreen() {
       `Approve request from "${requestItem?.recipientName}"? It will become available for delivery.`,
       async () => {
         setSubmitting(true);
-        try   { await approveRequest(requestItem.id); setDecision('approved'); }
-        catch { Alert.alert('Error', 'Could not approve this request.'); }
+        try {
+          await approveRequest(requestItem.id);
+          setDecision('approved');
+        } catch (error) {
+          const message = error.code === 'quantity-unstructured'
+            ? 'The donor must update this listing to a supported amount and unit before it can be approved.'
+            : error.code === 'request-quantity-unstructured'
+              ? 'This request has no supported amount and unit. Ask the recipient to submit a new request with a quantity such as “2 meals”.'
+            : error.code === 'insufficient-quantity'
+              ? error.message
+              : error.code === 'quantity-unit-mismatch'
+                ? 'The requested unit does not match the donation. Ask the recipient to submit a corrected request.'
+                : error.code === 'donation-unavailable'
+                  ? 'This donation is no longer available. Decline this request to close it, then refresh the queue.'
+                  : error.code === 'request-unavailable'
+                    ? 'This request has already been processed. Refresh the request queue.'
+                    : error.code === 'delivery-unavailable'
+                      ? 'This delivery is no longer awaiting approval. Refresh the request queue.'
+                : 'Could not approve this request. Please refresh and try again.';
+          Alert.alert('Unable to approve request', message);
+        }
         finally { setSubmitting(false); }
       },
     );
@@ -157,7 +180,7 @@ export default function RequestDetailScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={C.white} />
       <ScrollView
         style={s.scroll}
-        contentContainerStyle={s.content}
+        contentContainerStyle={[s.content, { paddingBottom: tabBarContentPadding }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Back button ── */}

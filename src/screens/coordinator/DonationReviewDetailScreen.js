@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Platform,
-  ScrollView,
-  StatusBar,
   StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedSafeAreaView as SafeAreaView,
+  ThemedScrollView as ScrollView,
+  ThemedStatusBar as StatusBar,
+  ThemedText as Text,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
+import { useTabBarContentPadding } from '../../hooks';
 import { acceptDonation, declineDonation } from '../../services/coordinatorService';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -62,6 +65,7 @@ function InfoRow({ label, value, last }) {
 export default function DonationReviewDetailScreen() {
   const navigation  = useNavigation();
   const route       = useRoute();
+  const tabBarContentPadding = useTabBarContentPadding();
   const donation    = route.params?.donation;
 
   const [submitting, setSubmitting] = useState(false);
@@ -80,8 +84,17 @@ export default function DonationReviewDetailScreen() {
       `Accept "${donation?.foodName}"? It will become available for delivery.`,
       async () => {
         setSubmitting(true);
-        try   { await acceptDonation(donation.id); setDecision('accepted'); }
-        catch { Alert.alert('Error', 'Could not accept this donation.'); }
+        try {
+          await acceptDonation(donation.id);
+          setDecision('accepted');
+        } catch (error) {
+          const message = error.code === 'donation-review-unavailable'
+            ? 'This donation has already been reviewed. Return to the queue and refresh.'
+            : error.code === 'quantity-unstructured'
+              ? 'Ask the donor to enter a supported amount and unit before accepting this donation.'
+              : 'Could not accept this donation. Please refresh and try again.';
+          Alert.alert('Unable to accept donation', message);
+        }
         finally { setSubmitting(false); }
       },
     );
@@ -92,8 +105,17 @@ export default function DonationReviewDetailScreen() {
       `Decline "${donation?.foodName}"? The donor will see this status.`,
       async () => {
         setSubmitting(true);
-        try   { await declineDonation(donation.id); setDecision('declined'); }
-        catch { Alert.alert('Error', 'Could not decline this donation.'); }
+        try {
+          await declineDonation(donation.id);
+          setDecision('declined');
+        } catch (error) {
+          Alert.alert(
+            'Unable to decline donation',
+            error.code === 'donation-review-unavailable'
+              ? 'This donation has already been reviewed. Return to the queue and refresh.'
+              : 'Could not decline this donation. Please refresh and try again.',
+          );
+        }
         finally { setSubmitting(false); }
       },
       true,
@@ -163,7 +185,7 @@ export default function DonationReviewDetailScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={C.white} />
       <ScrollView
         style={s.scroll}
-        contentContainerStyle={s.content}
+        contentContainerStyle={[s.content, { paddingBottom: tabBarContentPadding }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Back button ── */}

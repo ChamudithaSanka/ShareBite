@@ -15,11 +15,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { subscribeToPendingDonations, subscribeToPendingRequests } from '../../services/coordinatorService';
 import { subscribeToVolunteerDeliveries } from '../../services/deliveryService';
 import { donationService } from '../../services/donationService';
+import { subscribeToInventory } from '../../services/inventoryService';
+import { subscribeToRecipientRequests } from '../../services/requestService';
+import { sumMealPortionQuantities } from '../../utils/quantity';
+import { useTabBarContentPadding } from '../../hooks';
 
 const GREEN = '#1A7A4A';
 const ACTIVE_DELIVERY_STATUSES = ['assigned', 'picked_up', 'in_transit'];
+const ACTIVE_REQUEST_STATUSES = ['pending', 'approved', 'assigned', 'picked_up', 'in_transit', 'at_recipient'];
+const COMPLETED_REQUEST_STATUSES = ['delivered', 'completed'];
 const ROLE_INFO = {
   donor: { label: 'Donor', emoji: '🤝', tint: '#E8F5EE', stat: 'Meals shared' },
   recipient: { label: 'Recipient', emoji: '🍽️', tint: '#FEF3C7', stat: 'Requests received' },
@@ -29,7 +36,7 @@ const ROLE_INFO = {
 
 const MENU_ITEMS = [
   { icon: '✎', title: 'Edit profile', subtitle: 'Update your name and phone number', key: 'edit' },
-  { icon: '⌖', title: 'Saved addresses', subtitle: 'Manage your pickup and delivery addresses', key: 'addresses' },
+  { icon: '⌖', title: 'Saved addresses', subtitle: 'Manage your delivery and pickup addresses', key: 'addresses' },
   { icon: '◉', title: 'Notifications', subtitle: 'Choose which updates you receive', key: 'notifications' },
   { icon: '◐', title: 'Appearance', subtitle: 'Choose light or dark mode', key: 'appearance' },
 ];
@@ -46,6 +53,7 @@ const formatMemberSince = (createdAt) => {
 export default function ProfileScreen({ navigation }) {
   const { user, userProfile, signOut, updateUserProfile } = useAuth();
   const { colors, isDark, setDarkMode } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
@@ -55,12 +63,18 @@ export default function ProfileScreen({ navigation }) {
   const [editingAddressIndex, setEditingAddressIndex] = useState(null);
   const [deliveryStats, setDeliveryStats] = useState({ active: 0, completed: 0, loading: false });
   const [donorStats, setDonorStats] = useState({ total: 0, active: 0, meals: 0, loading: false });
+  const [recipientStats, setRecipientStats] = useState({ total: 0, active: 0, completed: 0, loading: false });
+  const [coordinatorStats, setCoordinatorStats] = useState({ inventory: null, pendingDonations: null, pendingRequests: null });
   const [name, setName] = useState(userProfile?.name || '');
   const [phone, setPhone] = useState(userProfile?.phone || '');
-  const userRole = userProfile?.role;
-  const role = ROLE_INFO[userProfile?.role] || ROLE_INFO.recipient;
+  const userRole = String(userProfile?.role || userProfile?.Role || '').trim().toLowerCase();
+  const role = ROLE_INFO[userRole] || ROLE_INFO.recipient;
   const email = userProfile?.email || user?.email || 'No email added';
-  const visibleMenuItems = MENU_ITEMS.filter((item) => !(userRole === 'volunteer' && item.key === 'addresses') && !(userRole !== 'donor' && item.key === 'addresses'));
+  const visibleMenuItems = MENU_ITEMS.filter((item) => item.key !== 'addresses' || ['donor', 'recipient'].includes(userRole));
+  const coordinatorInventoryCount = coordinatorStats.inventory ?? '—';
+  const coordinatorPendingReviewCount = coordinatorStats.pendingDonations === null || coordinatorStats.pendingRequests === null
+    ? '—'
+    : coordinatorStats.pendingDonations + coordinatorStats.pendingRequests;
 
   useEffect(() => {
     setAddresses(Array.isArray(userProfile?.savedAddresses) ? userProfile.savedAddresses : []);
@@ -88,6 +102,24 @@ export default function ProfileScreen({ navigation }) {
   }, [user?.uid, userRole]);
 
   useEffect(() => {
+    if (userRole !== 'recipient' || !user?.uid) {
+      setRecipientStats({ total: 0, active: 0, completed: 0, loading: false });
+      return undefined;
+    }
+
+    setRecipientStats((current) => ({ ...current, loading: true }));
+    return subscribeToRecipientRequests(
+      user.uid,
+      (requests) => {
+        const completed = requests.filter((request) => COMPLETED_REQUEST_STATUSES.includes((request.status || '').toLowerCase())).length;
+        const active = requests.filter((request) => ACTIVE_REQUEST_STATUSES.includes((request.status || 'pending').toLowerCase())).length;
+        setRecipientStats({ total: requests.length, active, completed, loading: false });
+      },
+      () => setRecipientStats((current) => ({ ...current, loading: false })),
+    );
+  }, [user?.uid, userRole]);
+
+  useEffect(() => {
     if (userRole !== 'donor' || !user?.uid) {
       setDonorStats({ total: 0, active: 0, meals: 0, loading: false });
       return undefined;
@@ -104,8 +136,8 @@ export default function ProfileScreen({ navigation }) {
 
         setDonorStats({
           total: donations.length,
-          active: donations.filter((donation) => ['available', 'pending_review'].includes(donation.status)).length,
-          meals: donations.reduce((total, donation) => total + (Number.parseInt(donation.quantity, 10) || 0), 0),
+          active: donations.filter((donation) => ['available', 'pending_review', 'reserved', 'picked_up'].includes(donation.status)).length,
+          meals: sumMealPortionQuantities(donations),
           loading: false,
         });
       } catch (error) {
@@ -121,6 +153,41 @@ export default function ProfileScreen({ navigation }) {
       cancelled = true;
     };
   }, [user?.uid, userRole]);
+
+  useEffect(() => {
+    if (userRole !== 'coordinator') {
+      setCoordinatorStats({ inventory: null, pendingDonations: null, pendingRequests: null });
+      return undefined;
+    }
+
+    let active = true;
+    setCoordinatorStats({ inventory: null, pendingDonations: null, pendingRequests: null });
+
+    const updateStats = (update) => {
+      if (!active) return;
+      setCoordinatorStats((current) => ({ ...current, ...update }));
+    };
+
+    const unsubscribeInventory = subscribeToInventory(
+      (items) => updateStats({ inventory: items.length }),
+      () => {},
+    );
+    const unsubscribeDonations = subscribeToPendingDonations(
+      (items) => updateStats({ pendingDonations: items.length }),
+      () => {},
+    );
+    const unsubscribeRequests = subscribeToPendingRequests(
+      (items) => updateStats({ pendingRequests: items.length }),
+      () => {},
+    );
+
+    return () => {
+      active = false;
+      unsubscribeInventory();
+      unsubscribeDonations();
+      unsubscribeRequests();
+    };
+  }, [userRole]);
 
   const openEditor = () => {
     setName(userProfile?.name || '');
@@ -159,10 +226,6 @@ export default function ProfileScreen({ navigation }) {
       return;
     }
     if (key === 'addresses') {
-      if (userRole !== 'donor') {
-        Alert.alert('Coming soon', 'This profile section will be available in a future update.');
-        return;
-      }
       setEditingAddressIndex(null);
       setAddressName('');
       setAddressValue('');
@@ -175,6 +238,14 @@ export default function ProfileScreen({ navigation }) {
     }
     if (key === 'notifications' && userRole === 'donor') {
       navigation.navigate('DonorNotifications');
+      return;
+    }
+    if (key === 'notifications' && userRole === 'recipient') {
+      navigation.navigate('RecipientNotifications');
+      return;
+    }
+    if (key === 'notifications' && userRole === 'coordinator') {
+      navigation.navigate('CoordinatorNotifications');
       return;
     }
     if (key === 'appearance') {
@@ -193,7 +264,7 @@ export default function ProfileScreen({ navigation }) {
   const saveAddress = async () => {
     const trimmedValue = addressValue.trim();
     if (!trimmedValue) {
-      Alert.alert('Address required', 'Please enter a pickup address or location.');
+      Alert.alert('Address required', 'Please enter a delivery or pickup address.');
       return;
     }
 
@@ -207,7 +278,7 @@ export default function ProfileScreen({ navigation }) {
       ? addresses.map((address, index) => (index === editingAddressIndex ? nextAddress : address))
       : [nextAddress, ...addresses];
 
-    Alert.alert('Save address?', 'This saved address will be stored in your donor profile.', [
+    Alert.alert('Save address?', 'This saved address will be stored in your profile.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Save address',
@@ -229,7 +300,7 @@ export default function ProfileScreen({ navigation }) {
     const target = addresses[index];
     if (!target) return;
 
-    Alert.alert('Remove saved address?', `This will remove "${target.label || 'Saved address'}" from your donor profile.`, [
+    Alert.alert('Remove saved address?', `This will remove "${target.label || 'Saved address'}" from your profile.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -257,7 +328,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.headerEyebrow, { color: colors.primary }]}>ACCOUNT</Text>
           <Text style={[styles.title, { color: colors.text }]}>My profile</Text>
@@ -280,22 +351,28 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.impactCard}>
           <View>
             <Text style={styles.impactEyebrow}>COMMUNITY IMPACT</Text>
-            <Text style={styles.impactTitle}>{userRole === 'volunteer' ? 'Your volunteer impact' : userRole === 'donor' ? 'Your donor impact' : 'Every action counts'}</Text>
+            <Text style={styles.impactTitle}>{userRole === 'volunteer' ? 'Your volunteer impact' : userRole === 'donor' ? 'Your donor impact' : userRole === 'coordinator' ? 'Your coordinator impact' : 'Every action counts'}</Text>
             <Text style={styles.impactSubtitle}>
               {userRole === 'volunteer'
                 ? `${deliveryStats.loading ? '-' : deliveryStats.completed} deliveries completed so far. Every delivery helps good food go further.`
                 : userRole === 'donor'
                   ? `${donorStats.loading ? 'Loading your recent impact...' : `${donorStats.total} donation${donorStats.total === 1 ? '' : 's'} shared so far. Every meal helps someone nearby.`}`
-                  : 'Thank you for helping good food go further.'}
+                  : userRole === 'recipient'
+                    ? recipientStats.loading
+                      ? 'Loading your request history...'
+                      : `${recipientStats.completed} request${recipientStats.completed === 1 ? '' : 's'} delivered, with ${recipientStats.active} active.`
+                    : userRole === 'coordinator'
+                      ? 'Your reviews help good food reach people who need it.'
+                      : 'Thank you for helping good food go further.'}
             </Text>
           </View>
           <Text style={styles.impactEmoji}>🌱</Text>
         </View>
 
         <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'volunteer' ? (deliveryStats.loading ? '-' : deliveryStats.completed) : userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.total) : 12}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'volunteer' ? role.stat : userRole === 'donor' ? 'Donation listings' : role.stat}</Text></View>
-          <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'volunteer' ? (deliveryStats.loading ? '-' : deliveryStats.active) : userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.active) : 3}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'volunteer' ? 'Active deliveries' : userRole === 'donor' ? 'Active listings' : 'Active this month'}</Text></View>
-          <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.meals) : formatMemberSince(userProfile?.createdAt)}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'donor' ? 'Meals shared' : 'Member since'}</Text></View>
+          <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'volunteer' ? (deliveryStats.loading ? '-' : deliveryStats.completed) : userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.total) : userRole === 'recipient' ? (recipientStats.loading ? '-' : recipientStats.total) : coordinatorInventoryCount}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'volunteer' ? role.stat : userRole === 'donor' ? 'Donation listings' : userRole === 'recipient' ? 'Total requests' : role.stat}</Text></View>
+          <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'volunteer' ? (deliveryStats.loading ? '-' : deliveryStats.active) : userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.active) : userRole === 'recipient' ? (recipientStats.loading ? '-' : recipientStats.active) : coordinatorPendingReviewCount}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'volunteer' ? 'Active deliveries' : userRole === 'donor' ? 'Active listings' : userRole === 'recipient' ? 'Active requests' : userRole === 'coordinator' ? 'Pending reviews' : 'Active this month'}</Text></View>
+          <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.meals) : userRole === 'recipient' ? (recipientStats.loading ? '-' : recipientStats.completed) : formatMemberSince(userProfile?.createdAt)}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'donor' ? 'Meals/portions listed' : userRole === 'recipient' ? 'Completed' : 'Member since'}</Text></View>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile & preferences</Text>
@@ -336,7 +413,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.modalHeader}>
                 <View>
                   <Text style={[styles.modalTitle, { color: colors.text }]}>Saved addresses</Text>
-                  <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Store your common pickup locations.</Text>
+                  <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Store your common delivery or pickup locations.</Text>
                 </View>
                 <Pressable onPress={() => { resetAddressForm(); setAddressModalVisible(false); }}>
                   <Text style={[styles.close, { color: colors.textSecondary }]}>×</Text>

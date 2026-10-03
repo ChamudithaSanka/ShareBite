@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Platform,
-  ScrollView,
-  StatusBar,
   StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedSafeAreaView as SafeAreaView,
+  ThemedScrollView as ScrollView,
+  ThemedStatusBar as StatusBar,
+  ThemedText as Text,
+  ThemedTextInput as TextInput,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
+import { useTabBarContentPadding } from '../../hooks';
 import { markAvailable, markOutOfStock, updateInventoryItem } from '../../services/inventoryService';
+import { parseFoodQuantity } from '../../utils/quantity';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -64,6 +68,7 @@ function InfoRow({ label, value, last }) {
 export default function InventoryDetailScreen() {
   const navigation = useNavigation();
   const route      = useRoute();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [item, setItem]       = useState(route.params?.item);
   const [newQty, setNewQty]   = useState(item?.quantity || '');
   const [editMode, setEdit]   = useState(false);
@@ -105,7 +110,13 @@ export default function InventoryDetailScreen() {
             setItem((p) => ({ ...p, quantity: newQty.trim() }));
             setEdit(false);
             Alert.alert('Updated ✅', 'Quantity has been saved.');
-          } catch { Alert.alert('Error', 'Could not update quantity.'); }
+          } catch (error) {
+            Alert.alert('Unable to update quantity', error.code === 'inventory-has-active-requests'
+              ? 'Complete or decline active recipient requests before changing this item.'
+              : error.code === 'invalid-inventory-quantity'
+                ? 'Enter a positive quantity and supported unit.'
+                : 'Could not update quantity.');
+          }
           finally   { setSub(false); }
         },
       },
@@ -115,6 +126,14 @@ export default function InventoryDetailScreen() {
   // ── Toggle status ──────────────────────────────────────────────────────────
   const handleToggle = () => {
     const goingOut  = isAvailable;
+    if (!goingOut) {
+      const linkedQuantity = parseFoodQuantity(newQty, item.quantityUnit);
+      const unlinkedQuantity = Number.parseFloat(newQty);
+      if (item.donationId ? !linkedQuantity : !Number.isFinite(unlinkedQuantity) || unlinkedQuantity <= 0) {
+        Alert.alert('Quantity required', 'Enter a positive quantity before marking this item back in stock.');
+        return;
+      }
+    }
     const title     = goingOut ? 'Mark as Out of Stock' : 'Mark as Back in Stock';
     const message   = goingOut
       ? 'This will mark the item as out of stock and set quantity to 0.'
@@ -136,7 +155,13 @@ export default function InventoryDetailScreen() {
               await markAvailable(item.id, newQty.trim() || item.quantity);
               setItem((p) => ({ ...p, status: 'available' }));
             }
-          } catch { Alert.alert('Error', 'Could not update status.'); }
+          } catch (error) {
+            Alert.alert('Unable to update status', error.code === 'inventory-has-active-requests'
+              ? 'Complete or decline active recipient requests before changing this item.'
+              : error.code === 'invalid-inventory-quantity'
+                ? 'Enter a positive quantity before marking this item back in stock.'
+                : 'Could not update status.');
+          }
           finally   { setSub(false); }
         },
       },
@@ -157,7 +182,7 @@ export default function InventoryDetailScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={C.white} />
       <ScrollView
         style={s.scroll}
-        contentContainerStyle={s.content}
+        contentContainerStyle={[s.content, { paddingBottom: tabBarContentPadding }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >

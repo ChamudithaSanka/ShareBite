@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Linking, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Linking, PanResponder, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
 import { subscribeToVolunteerDeliveries, updateDeliveryStatus } from '../../services/deliveryService';
 
 const GREEN = '#1A7A4A';
@@ -38,6 +39,7 @@ const steps = [
 export default function ActiveDeliveryScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -166,7 +168,7 @@ export default function ActiveDeliveryScreen() {
   return (
     <>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <View>
           <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR ROUTE</Text>
@@ -273,7 +275,7 @@ export default function ActiveDeliveryScreen() {
           </View>
         </View>
       ) : null}
-      </View>
+      </ScrollView>
       </SafeAreaView>
     </>
   );
@@ -281,7 +283,7 @@ export default function ActiveDeliveryScreen() {
 
 const styles = StyleSheet.create({
   container: { backgroundColor: '#F5F7F6', flex: 1 },
-  content: { padding: 20, paddingBottom: 132 },
+  content: { padding: 20 },
   headerRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   headerIcon: { alignItems: 'center', backgroundColor: '#E2F3E8', borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
   eyebrow: { color: GREEN, fontSize: 11, fontWeight: '800', letterSpacing: 1.1 },

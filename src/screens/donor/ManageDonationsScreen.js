@@ -4,12 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
 import { donationService } from '../../services/donationService';
 
 export default function ManageDonationsScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -49,7 +51,7 @@ export default function ManageDonationsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
       <Text style={[styles.title, { color: colors.text }]}>My Donations</Text>
 
       {loading ? (

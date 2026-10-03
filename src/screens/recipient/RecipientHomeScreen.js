@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Image, ScrollView, StyleSheet,
-  Text, TouchableOpacity, View,
+  Image, StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedSafeAreaView as SafeAreaView,
+  ThemedScrollView as ScrollView,
+  ThemedText as Text,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
+import RoleGreeting from '../../components/RoleGreeting';
 import { subscribeToAvailableDonations } from '../../services/donationService';
 
 const C = {
@@ -75,6 +84,8 @@ function FoodCard({ item, onPress }) {
 
 export default function RecipientHomeScreen({ navigation }) {
   const { userProfile } = useAuth();
+  const { colors } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -87,19 +98,21 @@ export default function RecipientHomeScreen({ navigation }) {
   const rte = donations.filter((d) => (d.foodType || '').toLowerCase().includes('ready'));
   const storable = donations.filter((d) => (d.foodType || '').toLowerCase().includes('storable'));
 
-  const firstName = (userProfile?.name || 'there').split(' ')[0];
-
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: tabBarContentPadding }}>
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerGreeting}>Hi there,</Text>
-            <Text style={styles.headerName}>{firstName} 👋</Text>
-          </View>
-          <View style={styles.avatar}>
-            <Text style={{ fontSize: 22 }}>🍽️</Text>
+            <RoleGreeting
+              greeting="Hi there,"
+              name={userProfile?.name}
+              fallbackName="there"
+              role="Recipient"
+              textColor={colors.text}
+              secondaryColor={colors.textSecondary}
+              accentColor={colors.primary}
+            />
           </View>
         </View>
 
@@ -163,10 +176,6 @@ const styles = StyleSheet.create({
   },
   headerGreeting: { fontSize: 13, color: C.gray500, marginBottom: 2 },
   headerName: { fontSize: 22, fontWeight: '800', color: C.gray900, letterSpacing: -0.3 },
-  avatar: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: C.amberLight, alignItems: 'center', justifyContent: 'center',
-  },
   banner: {
     margin: 20, borderRadius: 18, padding: 20,
     backgroundColor: C.green,

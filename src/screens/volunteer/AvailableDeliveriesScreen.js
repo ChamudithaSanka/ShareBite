@@ -5,6 +5,7 @@ import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
 import { subscribeToAvailableDeliveries, subscribeToVolunteerDeliveries } from '../../services/deliveryService';
 
 const GREEN = '#1A7A4A';
@@ -14,6 +15,7 @@ const dropoffFor = (delivery) => delivery.deliveryAddress || delivery.dropoffAdd
 export default function AvailableDeliveriesScreen({ navigation }) {
   const { user } = useAuth();
   const { colors } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [deliveries, setDeliveries] = useState([]);
   const [completed, setCompleted] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ export default function AvailableDeliveriesScreen({ navigation }) {
       <FlatList
         data={deliveries}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabBarContentPadding }]}
         ListEmptyComponent={!loading ? <Text style={[styles.empty, { color: colors.textSecondary }]}>No deliveries are waiting right now.</Text> : null}
         renderItem={({ item }) => (
           <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('DeliveryDetail', { delivery: item })} activeOpacity={0.8}>

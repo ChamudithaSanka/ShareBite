@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
   Image,
   StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedFlatList as FlatList,
+  ThemedSafeAreaView as SafeAreaView,
+  ThemedText as Text,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
 import { useAuth } from '../../context/AuthContext';
+import { useTabBarContentPadding } from '../../hooks';
 import { subscribeToRecipientRequests } from '../../services/requestService';
 
 const C = {
@@ -28,6 +31,7 @@ const C = {
   gray200: '#E5E7EB',
   gray400: '#9CA3AF',
   gray500: '#6B7280',
+  gray600: '#4B5563',
   gray700: '#374151',
   gray800: '#1F2937',
   gray900: '#111827',
@@ -36,6 +40,7 @@ const C = {
 
 const STATUS_CONFIG = {
   pending: { label: 'Pending', color: C.amber, bg: C.amberLight, icon: '⏳' },
+  approved: { label: 'Approved', color: C.green, bg: C.greenLight, icon: '✓' },
   assigned: { label: 'Assigned', color: C.blue, bg: C.blueLight, icon: '🚴' },
   picked_up: { label: 'Picked up', color: C.blue, bg: C.blueLight, icon: '📦' },
   in_transit: { label: 'On the way', color: C.blue, bg: C.blueLight, icon: '🚴' },
@@ -43,6 +48,7 @@ const STATUS_CONFIG = {
   delivered: { label: 'Delivered', color: C.green, bg: C.greenLight, icon: '✓' },
   completed: { label: 'Completed', color: C.green, bg: C.greenLight, icon: '✓' },
   cancelled: { label: 'Cancelled', color: C.coral, bg: C.coralLight, icon: '✕' },
+  declined: { label: 'Declined', color: C.coral, bg: C.coralLight, icon: '✕' },
 };
 
 const FOOD_EMOJI = {
@@ -90,6 +96,7 @@ function formatDate(timestamp) {
 
 export default function MyRequestsScreen({ navigation }) {
   const { user } = useAuth();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState('All');
   const [loading, setLoading] = useState(true);
@@ -117,7 +124,7 @@ export default function MyRequestsScreen({ navigation }) {
   const filteredRequests = requests.filter((r) => {
     const status = (r.status || 'pending').toLowerCase();
     if (filter === 'Active') {
-      return status !== 'completed' && status !== 'delivered' && status !== 'cancelled';
+      return !['completed', 'delivered', 'cancelled', 'declined'].includes(status);
     }
     if (filter === 'Completed') {
       return status === 'completed' || status === 'delivered';
@@ -166,7 +173,7 @@ export default function MyRequestsScreen({ navigation }) {
       <FlatList
         data={filteredRequests}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabBarContentPadding }]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           !loading ? (
@@ -243,7 +250,10 @@ export default function MyRequestsScreen({ navigation }) {
                   <Text style={{ fontSize: 13 }}>🚴</Text>
                 </View>
                 <Text style={styles.volunteerInfo} numberOfLines={1}>
-                  <Text style={{ fontWeight: '700' }}>{item.volunteerName}</Text> is handling your delivery
+                  <Text style={{ fontWeight: '700' }}>{item.volunteerName}</Text>
+                  {['delivered', 'completed'].includes((item.status || '').toLowerCase())
+                    ? ' delivered the food'
+                    : ' is handling your delivery'}
                 </Text>
                 <Text style={styles.trackArrow}>→</Text>
               </View>
@@ -330,7 +340,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
   card: {
     backgroundColor: C.white,

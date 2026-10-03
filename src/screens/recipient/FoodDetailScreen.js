@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import { Alert, Image, StyleSheet } from 'react-native';
 import {
-  ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text,
-  TextInput, TouchableOpacity, View,
-} from 'react-native';
-import * as Location from 'expo-location';
-import { useAuth } from '../../context/AuthContext';
-import { getDonationById } from '../../services/donationService';
-import { createFoodRequest } from '../../services/requestService';
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedScrollView as ScrollView,
+  ThemedText as Text,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
+import { useTabBarContentPadding } from '../../hooks';
+import { donationService } from '../../services/donationService';
 
 const C = {
   green: '#1A7A4A',
@@ -62,88 +64,20 @@ function DetailRow({ icon, label, value }) {
 }
 
 export default function FoodDetailScreen({ route, navigation }) {
-  const { user, userProfile } = useAuth();
-  const [donation, setDonation] = useState(route.params?.donation || null);
-  const [quantity, setQuantity] = useState(route.params?.donation?.quantity || '');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [deliveryCoordinates, setDeliveryCoordinates] = useState(null);
-  const [locationLoading, setLocationLoading] = useState(false);
+  const tabBarContentPadding = useTabBarContentPadding();
+  const initialDonation = route.params?.donation || null;
+  const [donation, setDonation] = useState(initialDonation);
   const [loading, setLoading] = useState(!donation);
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const donationId = route.params?.donationId;
     if (!donationId || donation) return undefined;
-    getDonationById(donationId)
-      .then((d) => { setDonation(d); setQuantity(d?.quantity || ''); })
+    donationService.getDonationById(donationId)
+      .then(setDonation)
       .catch(() => Alert.alert('Error', 'Unable to load this donation.'))
       .finally(() => setLoading(false));
     return undefined;
   }, [donation, route.params?.donationId]);
-
-  const useCurrentLocation = async () => {
-    setLocationLoading(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Allow ShareBite to access your location.');
-        return;
-      }
-      const loc = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = loc.coords;
-      setDeliveryCoordinates({ latitude, longitude });
-      const [addr] = await Location.reverseGeocodeAsync({ latitude, longitude });
-      setDeliveryAddress(
-        addr
-          ? [addr.name, addr.street, addr.city, addr.region, addr.postalCode].filter(Boolean).join(', ')
-          : `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
-      );
-    } catch {
-      Alert.alert('Location unavailable', 'Could not get your current location.');
-    } finally {
-      setLocationLoading(false);
-    }
-  };
-
-  useEffect(() => { useCurrentLocation(); }, []);
-
-  const handleRequest = async () => {
-    if (!quantity.trim() || !deliveryAddress.trim()) {
-      Alert.alert('Missing info', 'Enter a quantity and allow location access.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await createFoodRequest({
-        donationId: donation.id,
-        recipientId: user.uid,
-        recipientName: userProfile?.name || '',
-        quantity: quantity.trim(),
-        deliveryAddress: deliveryAddress.trim(),
-        deliveryCoordinates,
-        foodName: donation.foodName,
-        photoUrl: donation.photoUrl || '',
-        category: donation.category || '',
-        foodType: donation.foodType || '',
-        donorId: donation.donorId || null,
-        donorName: donation.donorName || '',
-        pickupLocation: donation.pickupLocation || '',
-        pickupCoordinates: donation.pickupCoordinates || (
-          donation.pickupLatitude != null && donation.pickupLongitude != null
-            ? { latitude: donation.pickupLatitude, longitude: donation.pickupLongitude }
-            : null
-        ),
-        distance: donation.distance || '',
-      });
-      Alert.alert('Request submitted! 🎉', 'A volunteer will pick this up for you.', [
-        { text: 'View my requests', onPress: () => navigation.navigate('Requests') },
-      ]);
-    } catch {
-      Alert.alert('Request failed', 'Unable to submit. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   if (loading) return <ActivityIndicator color={C.green} style={{ flex: 1, marginTop: 60 }} />;
   if (!donation) return <Text style={styles.emptyText}>Donation not found.</Text>;
@@ -151,7 +85,7 @@ export default function FoodDetailScreen({ route, navigation }) {
   const isRte = (donation.foodType || '').toLowerCase().includes('ready');
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: tabBarContentPadding }}>
       {/* Banner */}
       <View style={styles.banner}>
         {donation.photoUrl
@@ -183,39 +117,11 @@ export default function FoodDetailScreen({ route, navigation }) {
           </View>
         ) : null}
 
-        {/* Request form */}
-        <Text style={styles.fieldLabel}>Quantity to request</Text>
-        <TextInput
-          style={styles.input}
-          value={quantity}
-          onChangeText={setQuantity}
-          placeholder="e.g. 2 portions"
-        />
-
-        <Text style={styles.fieldLabel}>Delivery address</Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            value={deliveryAddress}
-            editable={false}
-            placeholder="Use current location"
-            placeholderTextColor={C.gray400}
-          />
-          <TouchableOpacity style={styles.locationBtn} onPress={useCurrentLocation} disabled={locationLoading}>
-            {locationLoading
-              ? <ActivityIndicator color={C.green} size="small" />
-              : <Text style={{ fontSize: 18 }}>📍</Text>}
-          </TouchableOpacity>
-        </View>
-
         <TouchableOpacity
-          style={[styles.requestBtn, submitting && { opacity: 0.6 }]}
-          onPress={handleRequest}
-          disabled={submitting}
+          style={styles.requestBtn}
+          onPress={() => navigation.navigate('RequestFood', { donation })}
         >
-          {submitting
-            ? <ActivityIndicator color={C.white} />
-            : <Text style={styles.requestBtnText}>❤️  Request this food</Text>}
+          <Text style={styles.requestBtnText}>❤️  Continue to request</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -265,17 +171,6 @@ const styles = StyleSheet.create({
   },
   noteLabel: { fontSize: 11, fontWeight: '700', color: C.gray500, marginBottom: 4, letterSpacing: 0.5 },
   noteText: { fontSize: 14, color: C.gray700, lineHeight: 20 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: C.gray700, marginBottom: 6, marginTop: 4 },
-  input: {
-    borderWidth: 1.5, borderColor: C.gray200, borderRadius: 12,
-    padding: 12, fontSize: 15, color: C.gray900, marginBottom: 12,
-  },
-  inputRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 12 },
-  locationBtn: {
-    width: 46, height: 46, borderRadius: 12,
-    borderWidth: 1.5, borderColor: C.green,
-    alignItems: 'center', justifyContent: 'center',
-  },
   requestBtn: {
     backgroundColor: C.green, borderRadius: 16,
     paddingVertical: 16, alignItems: 'center', marginTop: 8,

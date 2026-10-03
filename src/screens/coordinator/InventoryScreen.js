@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
   Platform,
-  StatusBar,
   StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import {
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedFlatList as FlatList,
+  ThemedSafeAreaView as SafeAreaView,
+  ThemedStatusBar as StatusBar,
+  ThemedText as Text,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
+import { useTabBarContentPadding } from '../../hooks';
 import { subscribeToInventory } from '../../services/inventoryService';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -105,6 +108,7 @@ function InventoryCard({ item, onPress }) {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function InventoryScreen() {
   const navigation = useNavigation();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [items,   setItems]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
@@ -179,7 +183,7 @@ export default function InventoryScreen() {
         <FlatList
           data={visible}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={s.list}
+          contentContainerStyle={[s.list, { paddingBottom: tabBarContentPadding }]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={(
             <View style={s.empty}>

@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
   Platform,
-  StatusBar,
   StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import {
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedFlatList as FlatList,
+  ThemedSafeAreaView as SafeAreaView,
+  ThemedStatusBar as StatusBar,
+  ThemedText as Text,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
+import { useTabBarContentPadding } from '../../hooks';
 import { subscribeToPendingDonations } from '../../services/coordinatorService';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -106,6 +109,7 @@ function EmptyState() {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ReviewDonationsScreen() {
   const navigation = useNavigation();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [donations, setDonations] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState('');
@@ -150,7 +154,7 @@ export default function ReviewDonationsScreen() {
         <FlatList
           data={donations}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={s.list}
+          contentContainerStyle={[s.list, { paddingBottom: tabBarContentPadding }]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={<EmptyState />}
           renderItem={({ item }) => (

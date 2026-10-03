@@ -5,6 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
 import { acceptDelivery, subscribeToDelivery } from '../../services/deliveryService';
 import { calculateDistance, coordinatesFromValue } from '../../utils';
 
@@ -19,6 +20,7 @@ const distanceFor = (delivery) => delivery.distance || calculateDistance(
 export default function DeliveryDetailScreen({ route, navigation }) {
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [delivery, setDelivery] = useState(route.params?.delivery || null);
   const [loading, setLoading] = useState(!delivery);
   const [accepting, setAccepting] = useState(false);
@@ -60,7 +62,7 @@ export default function DeliveryDetailScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={{ backgroundColor: colors.background, flex: 1 }} edges={['top']}>
-      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}> 
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background, paddingBottom: tabBarContentPadding }]}>
       <Text style={[styles.eyebrow, { color: colors.primary }]}>DELIVERY JOB</Text>
       <Text style={[styles.title, { color: colors.text }]}>{delivery.foodName || delivery.title || 'Food delivery'}</Text>
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{delivery.quantity || 'Quantity not specified'} · {distanceFor(delivery)}</Text>

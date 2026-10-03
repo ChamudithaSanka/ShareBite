@@ -4,12 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
+import RoleGreeting from '../../components/RoleGreeting';
 import { donationService } from '../../services/donationService';
+import { sumMealPortionQuantities } from '../../utils/quantity';
 
 export default function DonorHomeScreen() {
   const navigation = useNavigation();
   const { user, userProfile } = useAuth();
   const { colors } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,17 +47,22 @@ export default function DonorHomeScreen() {
     }, [user])
   );
 
-  const activeCount = donations.filter((item) => item.status === 'available' || item.status === 'pending_review').length;
+  const activeCount = donations.filter((item) => ['available', 'pending_review', 'reserved', 'picked_up'].includes(item.status)).length;
   const totalCount = donations.length;
-  const mealsShared = donations.reduce((total, item) => total + (Number.parseInt(item.quantity, 10) || 0), 0);
-  const name = userProfile?.name || 'Donor';
+  const mealsShared = sumMealPortionQuantities(donations);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text style={[styles.eyebrow, { color: colors.primary }]}>Donor</Text>
-      <Text style={[styles.title, { color: colors.text }]}>Welcome, {name}</Text>
-      <Text style={[styles.role, { color: colors.textSecondary }]}>Role: {userProfile?.role || 'donor'}</Text>
+    <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
+      <RoleGreeting
+        greeting="Welcome,"
+        name={userProfile?.name}
+        fallbackName="Donor"
+        role="Donor"
+        textColor={colors.text}
+        secondaryColor={colors.textSecondary}
+        accentColor={colors.primary}
+      />
 
       <View style={styles.statsRow}>
         <View style={[styles.statCard, { backgroundColor: colors.primarySoft, borderColor: colors.border }]}>
@@ -66,7 +75,7 @@ export default function DonorHomeScreen() {
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
           <Text style={[styles.statValue, { color: colors.primary }]}>{loading ? '-' : mealsShared}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Meals shared</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Meals/portions listed</Text>
         </View>
       </View>
 

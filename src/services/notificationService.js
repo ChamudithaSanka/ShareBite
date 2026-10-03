@@ -3,6 +3,8 @@ import * as Notifications from 'expo-notifications';
 
 const DELIVERY_CHANNEL_ID = 'delivery-updates';
 const DONOR_CHANNEL_ID = 'donation-updates';
+const RECIPIENT_CHANNEL_ID = 'request-updates';
+const COORDINATOR_CHANNEL_ID = 'coordinator-updates';
 
 const STATUS_LABELS = {
   assigned: 'assigned to you',
@@ -16,6 +18,16 @@ const DONOR_DELIVERY_STATUS_LABELS = {
   picked_up: 'Your donation has been picked up.',
   in_transit: 'Your donation is on its way.',
   delivered: 'Your donation has been delivered.',
+};
+
+const RECIPIENT_STATUS_LABELS = {
+  approved: { title: 'Request approved', body: (request) => `${request.foodName || 'Your food request'} was approved.` },
+  declined: { title: 'Request declined', body: (request) => `${request.foodName || 'Your food request'} was declined.` },
+  assigned: { title: 'Volunteer assigned', body: (request) => `A volunteer is handling ${request.foodName || 'your delivery'}.` },
+  picked_up: { title: 'Food picked up', body: (request) => `${request.foodName || 'Your food'} has been picked up.` },
+  in_transit: { title: 'Delivery on the way', body: (request) => `${request.foodName || 'Your delivery'} is on the way.` },
+  at_recipient: { title: 'Delivery arrived', body: (request) => `Your volunteer has arrived with ${request.foodName || 'your food'}.` },
+  delivered: { title: 'Delivery completed', body: (request) => `${request.foodName || 'Your food'} has been delivered.` },
 };
 
 export const configureLocalNotifications = async () => {
@@ -39,6 +51,18 @@ export const configureLocalNotifications = async () => {
     });
     await Notifications.setNotificationChannelAsync(DONOR_CHANNEL_ID, {
       name: 'Donation updates',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#1A7A4A',
+    });
+    await Notifications.setNotificationChannelAsync(RECIPIENT_CHANNEL_ID, {
+      name: 'Request updates',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#1A7A4A',
+    });
+    await Notifications.setNotificationChannelAsync(COORDINATOR_CHANNEL_ID, {
+      name: 'Coordinator queue updates',
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#1A7A4A',
@@ -105,7 +129,7 @@ export const notifyForDonorDonationChange = async (donation, previousDonation, p
 export const notifyForDonorDeliveryChange = async (delivery, previousDelivery, preferences) => {
   if (Platform.OS === 'web' || !delivery || !preferences) return;
 
-  const isNewRequest = !previousDelivery && delivery.status === 'pending';
+  const isNewRequest = !previousDelivery && ['awaiting_approval', 'pending'].includes(delivery.status);
   const statusChanged = previousDelivery && previousDelivery.status !== delivery.status;
   const shouldNotifyRequest = isNewRequest && preferences.newRequests !== false;
   const shouldNotifyStatus = statusChanged
@@ -127,9 +151,56 @@ export const notifyForDonorDeliveryChange = async (delivery, previousDelivery, p
   });
 };
 
+export const notifyForRecipientRequestChange = async (request, previousRequest, preferences) => {
+  if (Platform.OS === 'web' || !request || !previousRequest || !preferences) return;
+  if (previousRequest.status === request.status) return;
+
+  const status = request.status;
+  const isDecision = ['approved', 'declined'].includes(status);
+  const isAssignment = status === 'assigned';
+  const isProgress = ['picked_up', 'in_transit', 'at_recipient', 'delivered'].includes(status);
+  const shouldNotify = (isDecision && preferences.recipientRequestDecisions !== false)
+    || (isAssignment && preferences.recipientDeliveryAssignments !== false)
+    || (isProgress && preferences.recipientDeliveryProgress !== false);
+  const notification = RECIPIENT_STATUS_LABELS[status];
+  if (!shouldNotify || !notification) return;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: notification.title,
+      body: notification.body(request),
+      sound: 'default',
+      data: { requestId: request.id, status },
+    },
+    trigger: Platform.OS === 'android' ? { channelId: RECIPIENT_CHANNEL_ID } : null,
+  });
+};
+
+export const notifyCoordinatorForQueueItem = async (type, item, preferences) => {
+  if (Platform.OS === 'web' || !item || !preferences) return;
+
+  const isDonation = type === 'donation';
+  const preferenceKey = isDonation ? 'coordinatorPendingDonations' : 'coordinatorPendingRequests';
+  if (preferences[preferenceKey] === false) return;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: isDonation ? 'Storable donation for review' : 'Recipient request for review',
+      body: isDonation
+        ? `${item.foodName || 'A storable donation'} is waiting for your review.`
+        : `${item.foodName || 'A food request'} is waiting for your approval.`,
+      sound: 'default',
+      data: { type, itemId: item.id },
+    },
+    trigger: Platform.OS === 'android' ? { channelId: COORDINATOR_CHANNEL_ID } : null,
+  });
+};
+
 export default {
   configureLocalNotifications,
   notifyForDeliveryChange,
   notifyForDonorDonationChange,
   notifyForDonorDeliveryChange,
+  notifyForRecipientRequestChange,
+  notifyCoordinatorForQueueItem,
 };

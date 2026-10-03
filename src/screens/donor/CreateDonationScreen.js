@@ -18,7 +18,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
 import { donationService } from '../../services/donationService';
+import { FOOD_QUANTITY_UNITS, formatFoodQuantity } from '../../utils/quantity';
 
 const GREEN = '#1A7A4A';
 
@@ -26,6 +28,7 @@ const categoryOptions = ['Cooked meal', 'Fresh produce', 'Bakery', 'Snacks', 'Gr
 const conditionOptions = ['Fresh', 'Good', 'Needs quick use', 'Packaged'];
 const foodTypeOptions = ['ready-to-eat', 'storable'];
 const dateOptions = ['Today', 'Tomorrow', 'This weekend'];
+const quantityStepForUnit = (unit) => ['kg', 'litre'].includes(unit) ? 0.5 : 1;
 
 const formatDate = (value) => value.toISOString().split('T')[0];
 const parseDateString = (value) => {
@@ -38,7 +41,8 @@ const formatTime = (value) => value.toLocaleTimeString([], { hour: 'numeric', mi
 
 const initialForm = {
   foodName: '',
-  quantity: '',
+  quantityAmount: '',
+  quantityUnit: 'meal',
   category: 'Cooked meal',
   condition: 'Fresh',
   expiry: '',
@@ -55,6 +59,7 @@ const initialForm = {
 export default function CreateDonationScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [form, setForm] = useState(initialForm);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -67,8 +72,15 @@ export default function CreateDonationScreen() {
 
   const updateField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
+  const adjustQuantity = (direction) => {
+    const current = Number(form.quantityAmount) || 0;
+    const next = Math.max(0, Number((current + direction * quantityStepForUnit(form.quantityUnit)).toFixed(3)));
+    updateField('quantityAmount', next > 0 ? String(next) : '');
+  };
+
   const nextStep = () => {
-    if (!form.foodName || !form.quantity || !form.category || !form.condition) {
+    const quantityAmount = Number(form.quantityAmount);
+    if (!form.foodName || !Number.isFinite(quantityAmount) || quantityAmount <= 0 || !form.category || !form.condition) {
       Alert.alert('Missing info', 'Please complete the food details before continuing.');
       return;
     }
@@ -147,7 +159,9 @@ export default function CreateDonationScreen() {
       await donationService.createDonation({
         donorId: user.uid,
         foodName: form.foodName,
-        quantity: form.quantity,
+        quantity: formatFoodQuantity(form.quantityAmount, form.quantityUnit),
+        quantityAmount: Number(form.quantityAmount),
+        quantityUnit: form.quantityUnit,
         category: form.category,
         condition: form.condition,
         expiry: form.expiry,
@@ -159,10 +173,15 @@ export default function CreateDonationScreen() {
         pickupLongitude: form.pickupLongitude,
         photoUrl: await donationService.uploadDonationPhoto(form.photoUri, user.uid),
         notes: form.notes,
-        status: 'available',
+        status: form.foodType === 'storable' ? 'pending_review' : 'available',
       });
 
-      Alert.alert('Donation created', 'Your donation has been published successfully.');
+      Alert.alert(
+        form.foodType === 'storable' ? 'Donation submitted' : 'Donation published',
+        form.foodType === 'storable'
+          ? 'A coordinator will review your storable donation before it becomes available.'
+          : 'Your donation is now available to recipients.',
+      );
       setForm(initialForm);
       setStep(1);
     } catch (error) {
@@ -184,10 +203,17 @@ export default function CreateDonationScreen() {
       return;
     }
 
-    Alert.alert('Publish donation?', 'This will make the donation available to recipients.', [
+    const requiresReview = form.foodType === 'storable';
+    Alert.alert(
+      requiresReview ? 'Submit donation for review?' : 'Publish donation?',
+      requiresReview
+        ? 'A coordinator will review this storable donation before it becomes available to recipients.'
+        : 'This will make the donation available to recipients.',
+      [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Publish', onPress: publishDonation },
-    ]);
+      { text: requiresReview ? 'Submit for review' : 'Publish', onPress: publishDonation },
+      ],
+    );
   };
 
   return (
@@ -195,7 +221,7 @@ export default function CreateDonationScreen() {
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]}
         onScroll={({ nativeEvent }) => setShowBackToTop(nativeEvent.contentOffset.y > 280)}
         scrollEventThrottle={16}
       >
@@ -219,7 +245,46 @@ export default function CreateDonationScreen() {
 
           <View style={styles.fieldGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Quantity</Text>
-            <TextInput style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={form.quantity} onChangeText={(value) => updateField('quantity', value)} placeholder="e.g. 15 meals" placeholderTextColor={colors.textMuted} />
+            <View style={[styles.quantitySelector, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <TouchableOpacity
+                style={[styles.quantityButton, { backgroundColor: colors.surfaceMuted }, !(Number(form.quantityAmount) > 0) && styles.quantityButtonDisabled]}
+                onPress={() => adjustQuantity(-1)}
+                disabled={!(Number(form.quantityAmount) > 0)}
+                accessibilityRole="button"
+                accessibilityLabel="Decrease donation quantity"
+              >
+                <Text style={[styles.quantityButtonText, { color: colors.text }]}>−</Text>
+              </TouchableOpacity>
+              <View style={styles.quantityValueWrap}>
+                <Text style={[styles.quantityValue, { color: colors.text }]}>
+                  {Number(form.quantityAmount) > 0
+                    ? formatFoodQuantity(Number(form.quantityAmount), form.quantityUnit)
+                    : 'Select quantity'}
+                </Text>
+                <Text style={[styles.quantityStepHint, { color: colors.textMuted }]}>
+                  {['kg', 'litre'].includes(form.quantityUnit) ? 'Steps of 0.5' : 'Steps of 1'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.quantityButton, { backgroundColor: colors.primarySoft }]}
+                onPress={() => adjustQuantity(1)}
+                accessibilityRole="button"
+                accessibilityLabel="Increase donation quantity"
+              >
+                <Text style={[styles.quantityButtonText, { color: colors.primary }]}>+</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.optionWrap}>
+              {FOOD_QUANTITY_UNITS.map((unit) => (
+                <TouchableOpacity
+                  key={unit.value}
+                  style={[styles.optionChip, { backgroundColor: colors.surfaceMuted }, form.quantityUnit === unit.value && { backgroundColor: colors.primarySoft }]}
+                  onPress={() => updateField('quantityUnit', unit.value)}
+                >
+                  <Text style={[styles.optionText, { color: colors.textSecondary }, form.quantityUnit === unit.value && { color: colors.primary }]}>{unit.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           <View style={styles.fieldGroup}>
@@ -479,6 +544,13 @@ const styles = StyleSheet.create({
     color: '#111827',
     backgroundColor: '#fff',
   },
+  quantitySelector: { alignItems: 'center', borderRadius: 12, borderWidth: 1.2, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, minHeight: 68, padding: 10 },
+  quantityButton: { alignItems: 'center', borderRadius: 10, height: 44, justifyContent: 'center', width: 48 },
+  quantityButtonDisabled: { opacity: 0.45 },
+  quantityButtonText: { fontSize: 24, fontWeight: '700', lineHeight: 28 },
+  quantityValueWrap: { alignItems: 'center', flex: 1, paddingHorizontal: 8 },
+  quantityValue: { fontSize: 17, fontWeight: '800', textAlign: 'center' },
+  quantityStepHint: { fontSize: 11, marginTop: 3 },
   inputButton: {
     borderWidth: 1.2,
     borderColor: '#E5E7EB',

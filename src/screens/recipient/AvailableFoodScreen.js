@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import { Image, StyleSheet } from 'react-native';
 import {
-  ActivityIndicator, FlatList, Image, StyleSheet, Text,
-  TextInput, TouchableOpacity, View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  ThemedActivityIndicator as ActivityIndicator,
+  ThemedFlatList as FlatList,
+  ThemedSafeAreaView as SafeAreaView,
+  ThemedText as Text,
+  ThemedTextInput as TextInput,
+  ThemedTouchableOpacity as TouchableOpacity,
+  ThemedView as View,
+} from '../../components/ThemedPrimitives';
 import * as Location from 'expo-location';
+import { useTabBarContentPadding } from '../../hooks';
 import { subscribeToAvailableDonations } from '../../services/donationService';
 
 const C = {
@@ -86,6 +92,7 @@ function calcDistance(userLocation, donation) {
 }
 
 export default function AvailableFoodScreen({ navigation }) {
+  const tabBarContentPadding = useTabBarContentPadding();
   const [donations, setDonations] = useState([]);
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
@@ -149,7 +156,7 @@ export default function AvailableFoodScreen({ navigation }) {
       <FlatList
         data={visible}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabBarContentPadding }]}
         ListEmptyComponent={!loading ? <Text style={styles.emptyText}>No matching donations found.</Text> : null}
         renderItem={({ item }) => (
           <FoodCard
@@ -185,7 +192,7 @@ const styles = StyleSheet.create({
   filterBtnActive: { backgroundColor: C.green },
   filterText: { fontSize: 13, fontWeight: '600', color: C.gray600 },
   filterTextActive: { color: C.white },
-  list: { padding: 20, paddingBottom: 24 },
+  list: { padding: 20 },
   card: {
     backgroundColor: C.white, borderRadius: 16,
     borderWidth: 1, borderColor: C.gray200, overflow: 'hidden', marginBottom: 12,

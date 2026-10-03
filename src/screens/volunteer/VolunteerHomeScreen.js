@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
+import RoleGreeting from '../../components/RoleGreeting';
 import { subscribeToVolunteerDeliveries } from '../../services/deliveryService';
 
 const GREEN = '#1A7A4A';
@@ -12,9 +14,9 @@ const ACTIVE_STATUSES = ['assigned', 'picked_up', 'in_transit'];
 export default function VolunteerHomeScreen({ navigation }) {
   const { user, userProfile } = useAuth();
   const { colors, isDark } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const name = userProfile?.name || 'Volunteer';
   const active = deliveries.filter((delivery) => ACTIVE_STATUSES.includes(delivery.status));
   const completed = deliveries.filter((delivery) => delivery.status === 'delivered');
   const activeDelivery = active[0];
@@ -27,9 +29,17 @@ export default function VolunteerHomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <View><Text style={[styles.greeting, { color: colors.textSecondary }]}>Ready to help,</Text><Text style={[styles.title, { color: colors.text }]}>{name}</Text><Text style={[styles.role, { color: colors.primary }]}>Volunteer</Text></View>
+        <RoleGreeting
+          greeting="Ready to help,"
+          name={userProfile?.name}
+          fallbackName="Volunteer"
+          role="Volunteer"
+          textColor={colors.text}
+          secondaryColor={colors.textSecondary}
+          accentColor={colors.primary}
+        />
         
       </View>
       <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -75,8 +85,8 @@ export default function VolunteerHomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#F9FAFB', flex: 1, padding: 20, paddingBottom: 120 },
-  scrollContent: { paddingBottom: 132 },
+  container: { backgroundColor: '#F9FAFB', flex: 1, padding: 20 },
+  scrollContent: { paddingBottom: 16 },
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 22, marginTop: 8 },
   emoji: { fontSize: 28 },
   avatar: { alignItems: 'center', backgroundColor: '#E8F5EE', borderRadius: 28, height: 56, justifyContent: 'center', width: 56 },

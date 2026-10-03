@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,33 +7,18 @@ import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 
 const DEFAULT_PREFERENCES = {
-  donationReviewUpdates: true,
-  newRequests: true,
-  deliveryStatusUpdates: true,
+  recipientRequestDecisions: true,
+  recipientDeliveryAssignments: true,
+  recipientDeliveryProgress: true,
 };
 
 const OPTIONS = [
-  {
-    key: 'donationReviewUpdates',
-    icon: 'checkmark-circle-outline',
-    title: 'Donation review updates',
-    subtitle: 'Know when a coordinator approves or declines your donation.',
-  },
-  {
-    key: 'newRequests',
-    icon: 'mail-unread-outline',
-    title: 'New recipient requests',
-    subtitle: 'Get notified when someone requests your donation.',
-  },
-  {
-    key: 'deliveryStatusUpdates',
-    icon: 'bicycle-outline',
-    title: 'Delivery updates',
-    subtitle: 'Follow pickup and delivery progress.',
-  },
+  { key: 'recipientRequestDecisions', icon: 'checkmark-circle-outline', title: 'Approval and decline', subtitle: 'Know when a coordinator approves or declines a request.' },
+  { key: 'recipientDeliveryAssignments', icon: 'bicycle-outline', title: 'Volunteer assignment', subtitle: 'Know when a volunteer accepts your delivery.' },
+  { key: 'recipientDeliveryProgress', icon: 'navigate-outline', title: 'Delivery progress', subtitle: 'Get updates for pickup, transit, arrival, and delivery.' },
 ];
 
-export default function DonorNotificationSettingsScreen({ navigation }) {
+export default function RecipientNotificationSettingsScreen({ navigation }) {
   const { userProfile, updateUserProfile } = useAuth();
   const { colors, isDark } = useTheme();
   const tabBarContentPadding = useTabBarContentPadding();
@@ -43,19 +28,28 @@ export default function DonorNotificationSettingsScreen({ navigation }) {
   });
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    setPreferences({ ...DEFAULT_PREFERENCES, ...(userProfile?.notificationPreferences || {}) });
+  }, [userProfile?.notificationPreferences]);
+
   const togglePreference = (key) => {
     setPreferences((current) => ({ ...current, [key]: !current[key] }));
   };
 
   const savePreferences = () => {
-    Alert.alert('Save notification preferences?', 'Your donation notification choices will be updated.', [
+    Alert.alert('Save notification preferences?', 'Your request notification choices will be updated.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Save changes',
         onPress: async () => {
           setSaving(true);
           try {
-            await updateUserProfile({ notificationPreferences: preferences });
+            await updateUserProfile({
+              notificationPreferences: {
+                ...(userProfile?.notificationPreferences || {}),
+                ...preferences,
+              },
+            });
             Alert.alert('Preferences saved', 'Your notification choices have been updated.');
           } catch (error) {
             Alert.alert('Unable to save', 'Please check your connection and try again.');
@@ -85,7 +79,7 @@ export default function DonorNotificationSettingsScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.intro, { color: colors.textSecondary }]}>Choose which donation updates you want to receive.</Text>
+        <Text style={[styles.intro, { color: colors.textSecondary }]}>Choose which request updates you want to receive.</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {OPTIONS.map((option, index) => (
             <React.Fragment key={option.key}>
@@ -110,7 +104,7 @@ export default function DonorNotificationSettingsScreen({ navigation }) {
           ))}
         </View>
 
-        <Text style={[styles.note, { color: colors.textMuted }]}>These preferences are saved to your ShareBite account. Local alerts require the app to be open; remote push notifications are not enabled.</Text>
+        <Text style={[styles.note, { color: colors.textMuted }]}>Local alerts appear while ShareBite is open. Remote push notifications are not enabled.</Text>
         <Pressable
           onPress={savePreferences}
           disabled={saving}
@@ -133,7 +127,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 27, fontWeight: '800', marginTop: 4 },
   content: { paddingBottom: 120 },
   intro: { fontSize: 14, lineHeight: 20, marginBottom: 14 },
-  card: { borderRadius: 17, borderWidth: 1, paddingHorizontal: 14 },
+  card: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14 },
   option: { alignItems: 'center', flexDirection: 'row', minHeight: 88 },
   optionIcon: { alignItems: 'center', borderRadius: 12, height: 42, justifyContent: 'center', width: 42 },
   optionCopy: { flex: 1, marginHorizontal: 11 },
@@ -141,7 +135,7 @@ const styles = StyleSheet.create({
   optionSubtitle: { fontSize: 11, lineHeight: 16, marginTop: 3 },
   separator: { height: 1 },
   note: { fontSize: 11, lineHeight: 16, marginTop: 16 },
-  saveButton: { alignItems: 'center', borderRadius: 14, marginTop: 22, paddingVertical: 15 },
+  saveButton: { alignItems: 'center', borderRadius: 12, marginTop: 22, paddingVertical: 15 },
   saveButtonText: { fontSize: 15, fontWeight: '800' },
   disabledButton: { opacity: 0.6 },
 });

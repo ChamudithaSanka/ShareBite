@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTabBarContentPadding } from '../../hooks';
 
 const GREEN = '#1A7A4A';
 const DEFAULT_PREFERENCES = {
@@ -14,6 +15,7 @@ const DEFAULT_PREFERENCES = {
 export default function VolunteerNotificationSettingsScreen({ navigation }) {
   const { userProfile, updateUserProfile } = useAuth();
   const { colors, isDark } = useTheme();
+  const tabBarContentPadding = useTabBarContentPadding();
   const [preferences, setPreferences] = useState({
     ...DEFAULT_PREFERENCES,
     ...(userProfile?.notificationPreferences || {}),
@@ -56,7 +58,7 @@ export default function VolunteerNotificationSettingsScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
         <Text style={[styles.intro, { color: colors.textSecondary }]}>Choose which delivery updates you want to receive.</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.option}>
