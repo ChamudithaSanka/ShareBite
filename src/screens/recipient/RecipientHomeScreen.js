@@ -11,6 +11,7 @@ import {
   ThemedView as View,
 } from '../../components/ThemedPrimitives';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 import RoleGreeting from '../../components/RoleGreeting';
@@ -52,7 +53,7 @@ function Badge({ label, color = 'green' }) {
   );
 }
 
-function FoodCard({ item, onPress }) {
+function FoodCard({ item, onPress, t }) {
   const isRte = (item.foodType || '').toLowerCase().includes('ready');
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
@@ -61,7 +62,7 @@ function FoodCard({ item, onPress }) {
           ? <Image source={{ uri: item.photoUrl }} style={styles.cardImage} />
           : <Text style={styles.cardEmoji}>{getEmoji(item)}</Text>}
         <View style={styles.cardBadgeTop}>
-          <Badge label={isRte ? '🟢 Ready-to-Eat' : '📦 Storable'} color={isRte ? 'green' : 'amber'} />
+          <Badge label={t(isRte ? 'home.recipient.readyToEat' : 'home.recipient.storable')} color={isRte ? 'green' : 'amber'} />
         </View>
         {item.distance ? (
           <View style={styles.distancePill}>
@@ -72,9 +73,9 @@ function FoodCard({ item, onPress }) {
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle}>{item.foodName || 'Food donation'}</Text>
         <View style={styles.cardRow}>
-          <Text style={styles.cardQty}>Qty: <Text style={styles.cardQtyVal}>{item.quantity || '—'}</Text></Text>
+          <Text style={styles.cardQty}>{t('home.recipient.quantity')} <Text style={styles.cardQtyVal}>{item.quantity || '—'}</Text></Text>
           {item.pickupAvailability ? (
-            <Text style={styles.cardUntil}>Until {item.pickupAvailability}</Text>
+              <Text style={styles.cardUntil}>{t('home.recipient.until')} {item.pickupAvailability}</Text>
           ) : null}
         </View>
       </View>
@@ -84,6 +85,7 @@ function FoodCard({ item, onPress }) {
 
 export default function RecipientHomeScreen({ navigation }) {
   const { userProfile } = useAuth();
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const tabBarContentPadding = useTabBarContentPadding();
   const [donations, setDonations] = useState([]);
@@ -105,10 +107,10 @@ export default function RecipientHomeScreen({ navigation }) {
         <View style={styles.header}>
           <View>
             <RoleGreeting
-              greeting="Hi there,"
+              greeting={t('home.greetingHi')}
               name={userProfile?.name}
               fallbackName="there"
-              role="Recipient"
+              role={t('home.recipient.role')}
               textColor={colors.text}
               secondaryColor={colors.textSecondary}
               accentColor={colors.primary}
@@ -122,22 +124,23 @@ export default function RecipientHomeScreen({ navigation }) {
         onPress={() => navigation.navigate('Browse')}
         activeOpacity={0.85}
       >
-        <Text style={styles.bannerLabel}>Available near you</Text>
-        <Text style={styles.bannerCount}>{donations.length} donations</Text>
-        <Text style={styles.bannerSub}>Tap to browse all food →</Text>
+        <Text style={styles.bannerLabel}>{t('home.recipient.available')}</Text>
+        <Text style={styles.bannerCount}>{t('home.recipient.donationCount', { count: donations.length })}</Text>
+        <Text style={styles.bannerSub}>{t('home.recipient.tapBrowse')}</Text>
       </TouchableOpacity>
 
       {loading && <ActivityIndicator color={C.green} style={{ marginTop: 24 }} />}
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? <Text style={styles.errorText}>{t('home.recipient.loadError')}</Text> : null}
 
       {/* Ready-to-Eat */}
       {rte.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Near you now</Text>
+          <Text style={styles.sectionLabel}>{t('home.recipient.nearNow')}</Text>
           {rte.slice(0, 3).map((item) => (
             <FoodCard
               key={item.id}
               item={item}
+              t={t}
               onPress={() => navigation.navigate('FoodDetail', { donation: item })}
             />
           ))}
@@ -147,11 +150,12 @@ export default function RecipientHomeScreen({ navigation }) {
       {/* Storable */}
       {storable.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>From storage</Text>
+          <Text style={styles.sectionLabel}>{t('home.recipient.storage')}</Text>
           {storable.slice(0, 3).map((item) => (
             <FoodCard
               key={item.id}
               item={item}
+              t={t}
               onPress={() => navigation.navigate('FoodDetail', { donation: item })}
             />
           ))}
@@ -159,7 +163,7 @@ export default function RecipientHomeScreen({ navigation }) {
       )}
 
       {!loading && !error && donations.length === 0 && (
-        <Text style={styles.emptyText}>No donations available right now.</Text>
+        <Text style={styles.emptyText}>{t('home.recipient.empty')}</Text>
       )}
       </ScrollView>
     </SafeAreaView>

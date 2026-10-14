@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Linking, PanResponder, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Linking, PanResponder, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LocalizedText from '../../components/LocalizedText';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 import { subscribeToVolunteerDeliveries, updateDeliveryStatus } from '../../services/deliveryService';
+
+const Text = LocalizedText;
 
 const GREEN = '#1A7A4A';
 const activeStatuses = ['assigned', 'picked_up', 'in_transit', 'at_recipient'];

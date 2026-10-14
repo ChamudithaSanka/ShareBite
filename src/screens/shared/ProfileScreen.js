@@ -8,12 +8,13 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LocalizedText from '../../components/LocalizedText';
+import LocalizedTextInput from '../../components/LocalizedTextInput';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { subscribeToPendingDonations, subscribeToPendingRequests } from '../../services/coordinatorService';
 import { subscribeToVolunteerDeliveries } from '../../services/deliveryService';
@@ -22,6 +23,10 @@ import { subscribeToInventory } from '../../services/inventoryService';
 import { subscribeToRecipientRequests } from '../../services/requestService';
 import { sumMealPortionQuantities } from '../../utils/quantity';
 import { useTabBarContentPadding } from '../../hooks';
+import { LANGUAGE_OPTIONS } from '../../i18n/translations';
+
+const Text = LocalizedText;
+const TextInput = LocalizedTextInput;
 
 const GREEN = '#1A7A4A';
 const ACTIVE_DELIVERY_STATUSES = ['assigned', 'picked_up', 'in_transit'];
@@ -35,10 +40,11 @@ const ROLE_INFO = {
 };
 
 const MENU_ITEMS = [
-  { icon: '✎', title: 'Edit profile', subtitle: 'Update your name and phone number', key: 'edit' },
-  { icon: '⌖', title: 'Saved addresses', subtitle: 'Manage your delivery and pickup addresses', key: 'addresses' },
-  { icon: '◉', title: 'Notifications', subtitle: 'Choose which updates you receive', key: 'notifications' },
-  { icon: '◐', title: 'Appearance', subtitle: 'Choose light or dark mode', key: 'appearance' },
+  { icon: '✎', titleKey: 'profile.edit', subtitleKey: 'profile.editSubtitle', key: 'edit' },
+  { icon: '⌖', titleKey: 'profile.addresses', subtitleKey: 'profile.addressesSubtitle', key: 'addresses' },
+  { icon: '文', titleKey: 'language.setting', subtitleKey: 'language.profileSubtitle', key: 'language' },
+  { icon: '◉', titleKey: 'profile.notifications', subtitleKey: 'profile.notificationsSubtitle', key: 'notifications' },
+  { icon: '◐', titleKey: 'profile.appearance', subtitleKey: 'profile.appearanceSubtitle', key: 'appearance' },
 ];
 
 const formatMemberSince = (createdAt) => {
@@ -52,11 +58,22 @@ const formatMemberSince = (createdAt) => {
 
 export default function ProfileScreen({ navigation }) {
   const { user, userProfile, signOut, updateUserProfile } = useAuth();
+  const {
+    language,
+    setLanguage,
+    fontSizePercent,
+    changeFontSize,
+    canDecreaseFontSize,
+    canIncreaseFontSize,
+    t,
+  } = useLanguage();
   const { colors, isDark, setDarkMode } = useTheme();
   const tabBarContentPadding = useTabBarContentPadding();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const [savingFontSize, setSavingFontSize] = useState(false);
   const [addresses, setAddresses] = useState(Array.isArray(userProfile?.savedAddresses) ? userProfile.savedAddresses : []);
   const [addressName, setAddressName] = useState('');
   const [addressValue, setAddressValue] = useState('');
@@ -232,6 +249,10 @@ export default function ProfileScreen({ navigation }) {
       setAddressModalVisible(true);
       return;
     }
+    if (key === 'language') {
+      setLanguageModalVisible(true);
+      return;
+    }
     if (key === 'notifications' && userRole === 'volunteer') {
       navigation.navigate('VolunteerNotifications');
       return;
@@ -253,6 +274,18 @@ export default function ProfileScreen({ navigation }) {
       return;
     }
     Alert.alert('Coming soon', 'This profile section will be available in a future update.');
+  };
+
+  const handleFontSizeChange = async (direction) => {
+    setSavingFontSize(true);
+    try {
+      await changeFontSize(direction);
+    } catch (error) {
+      console.error('Failed to update text size preference:', error);
+      Alert.alert(t('fontSize.saveErrorTitle'), t('fontSize.saveErrorMessage'));
+    } finally {
+      setSavingFontSize(false);
+    }
   };
 
   const resetAddressForm = () => {
@@ -330,9 +363,9 @@ export default function ProfileScreen({ navigation }) {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[styles.headerEyebrow, { color: colors.primary }]}>ACCOUNT</Text>
-          <Text style={[styles.title, { color: colors.text }]}>My profile</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Your ShareBite community identity</Text>
+          <Text style={[styles.headerEyebrow, { color: colors.primary }]}>{t('profile.account')}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{t('profile.title')}</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('profile.subtitle')}</Text>
         </View>
 
         <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -375,7 +408,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.stat}><Text style={[styles.statNumber, { color: colors.primary }]}>{userRole === 'donor' ? (donorStats.loading ? '-' : donorStats.meals) : userRole === 'recipient' ? (recipientStats.loading ? '-' : recipientStats.completed) : formatMemberSince(userProfile?.createdAt)}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>{userRole === 'donor' ? 'Meals/portions listed' : userRole === 'recipient' ? 'Completed' : 'Member since'}</Text></View>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile & preferences</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('profile.preferences')}</Text>
         <View style={[styles.menuCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {visibleMenuItems.map((item, index) => (
             <Pressable
@@ -385,10 +418,47 @@ export default function ProfileScreen({ navigation }) {
               accessibilityRole="button"
             >
               <View style={[styles.menuIcon, { backgroundColor: colors.primarySoft }]}><Text style={[styles.menuIconText, { color: colors.primary }]}>{item.icon}</Text></View>
-              <View style={styles.menuCopy}><Text style={[styles.menuTitle, { color: colors.text }]}>{item.title}</Text><Text style={[styles.menuSubtitle, { color: colors.textMuted }]}>{item.subtitle}</Text></View>
+              <View style={styles.menuCopy}>
+                <Text style={[styles.menuTitle, { color: colors.text }]}>{t(item.titleKey)}</Text>
+                <Text style={[styles.menuSubtitle, { color: colors.textMuted }]}>
+                  {item.key === 'language'
+                    ? `${t(item.subtitleKey)} · ${LANGUAGE_OPTIONS.find((option) => option.code === language)?.nativeName}`
+                    : t(item.subtitleKey)}
+                </Text>
+              </View>
               {item.key === 'appearance' ? <Switch style={{ transform: [{ translateX: -4 }, { translateY: 20 }] }} value={isDark} onValueChange={setDarkMode} trackColor={{ false: '#D1D5DB', true: '#A7DDBA' }} thumbColor={isDark ? colors.primary : '#F9FAFB'} accessibilityLabel="Dark mode" /> : <Text style={[styles.chevron, { color: colors.textMuted }]}>›</Text>}
             </Pressable>
           ))}
+        </View>
+
+        <View style={[styles.fontSizeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.fontSizeCopy}>
+            <Text style={[styles.menuTitle, { color: colors.text }]}>{t('fontSize.title')}</Text>
+            <Text style={[styles.menuSubtitle, { color: colors.textMuted }]}>{t('fontSize.subtitle')}</Text>
+          </View>
+          <View style={styles.fontSizeControls}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('fontSize.decrease')}
+              accessibilityState={{ disabled: savingFontSize || !canDecreaseFontSize }}
+              disabled={savingFontSize || !canDecreaseFontSize}
+              onPress={() => handleFontSizeChange(-1)}
+              style={[styles.fontSizeButton, { borderColor: colors.border }, (savingFontSize || !canDecreaseFontSize) && styles.fontSizeButtonDisabled]}
+            >
+              <Text style={[styles.fontSizeButtonText, { color: colors.text }]}>−</Text>
+            </Pressable>
+            <Text style={[styles.fontSizeValue, { color: colors.text }]}>{fontSizePercent}%</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('fontSize.increase')}
+              accessibilityState={{ disabled: savingFontSize || !canIncreaseFontSize }}
+              disabled={savingFontSize || !canIncreaseFontSize}
+              onPress={() => handleFontSizeChange(1)}
+              style={[styles.fontSizeButton, { borderColor: colors.border }, (savingFontSize || !canIncreaseFontSize) && styles.fontSizeButtonDisabled]}
+            >
+              <Text style={[styles.fontSizeButtonText, { color: colors.text }]}>+</Text>
+            </Pressable>
+          </View>
         </View>
 
         <Pressable onPress={confirmSignOut} style={[styles.signOutButton, { backgroundColor: isDark ? '#3A211A' : '#FFF7F4', borderColor: isDark ? '#A94E32' : '#F2B8A7' }]} accessibilityRole="button">
@@ -397,6 +467,53 @@ export default function ProfileScreen({ navigation }) {
         </Pressable>
         <Text style={[styles.version, { color: colors.textMuted }]}>ShareBite · Your community, shared</Text>
       </ScrollView>
+
+      <Modal
+        visible={languageModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLanguageModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>{t('language.setting')}</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>{t('language.profileSubtitle')}</Text>
+              </View>
+              <Pressable onPress={() => setLanguageModalVisible(false)} accessibilityRole="button">
+                <Text style={[styles.close, { color: colors.textSecondary }]}>×</Text>
+              </Pressable>
+            </View>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <Pressable
+                key={option.code}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: language === option.code }}
+                onPress={async () => {
+                  try {
+                    await setLanguage(option.code);
+                    setLanguageModalVisible(false);
+                  } catch (error) {
+                    console.error('Failed to update language preference:', error);
+                    Alert.alert(t('language.saveErrorTitle'), t('language.saveErrorMessage'));
+                  }
+                }}
+                style={[
+                  styles.languageOption,
+                  { borderColor: colors.border, backgroundColor: language === option.code ? colors.primarySoft : colors.surface },
+                ]}
+              >
+                <View>
+                  <Text style={[styles.languageNativeName, { color: colors.text }]}>{option.nativeName}</Text>
+                  <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>{option.name}</Text>
+                </View>
+                {language === option.code ? <Text style={[styles.languageCheck, { color: colors.primary }]}>✓</Text> : null}
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={addressModalVisible} transparent animationType="slide" onRequestClose={() => { resetAddressForm(); setAddressModalVisible(false); }}>
         <KeyboardAvoidingView
@@ -521,6 +638,13 @@ const styles = StyleSheet.create({
   menuCopy: { flex: 1, marginLeft: 12 },
   menuTitle: { color: '#1F2937', fontSize: 14, fontWeight: '700' },
   menuSubtitle: { color: '#9CA3AF', fontSize: 11, marginTop: 3 },
+  fontSizeCard: { alignItems: 'center', borderRadius: 16, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', marginTop: 14, padding: 14 },
+  fontSizeCopy: { flex: 1, marginRight: 12 },
+  fontSizeControls: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  fontSizeButton: { alignItems: 'center', borderRadius: 10, borderWidth: 1, height: 38, justifyContent: 'center', width: 38 },
+  fontSizeButtonDisabled: { opacity: 0.4 },
+  fontSizeButtonText: { fontSize: 21, fontWeight: '600', lineHeight: 26 },
+  fontSizeValue: { fontSize: 13, fontWeight: '700', minWidth: 42, textAlign: 'center' },
   chevron: { color: '#9CA3AF', fontSize: 25, fontWeight: '300', marginLeft: 8 },
   signOutButton: { alignItems: 'center', borderColor: '#F2B8A7', borderRadius: 14, borderWidth: 1, flexDirection: 'row', justifyContent: 'center', marginTop: 20, paddingVertical: 13 },
   signOutIcon: { color: '#E05A2B', fontSize: 19, marginRight: 8 },
@@ -532,6 +656,9 @@ const styles = StyleSheet.create({
   modalHeader: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   modalTitle: { color: '#111827', fontSize: 21, fontWeight: '800' },
   modalSubtitle: { color: '#6B7280', fontSize: 12, marginTop: 4 },
+  languageOption: { alignItems: 'center', borderRadius: 12, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, padding: 14 },
+  languageNativeName: { fontSize: 17, fontWeight: '700' },
+  languageCheck: { fontSize: 22, fontWeight: '800' },
   close: { color: '#6B7280', fontSize: 28, lineHeight: 26 },
   inputLabel: { color: '#374151', fontSize: 13, fontWeight: '700', marginBottom: 6, marginTop: 12 },
   input: { borderColor: '#D1D5DB', borderRadius: 12, borderWidth: 1.5, color: '#111827', fontSize: 15, paddingHorizontal: 13, paddingVertical: 12 },

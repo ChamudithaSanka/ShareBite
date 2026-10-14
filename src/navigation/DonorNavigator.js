@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import AnimatedTabIcon from '../components/AnimatedTabIcon';
+import LocalizedText from '../components/LocalizedText';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { subscribeToDonorDeliveries } from '../services/deliveryService';
 import { subscribeToDonorDonations } from '../services/donationService';
@@ -73,6 +75,7 @@ const TabIcon = ({ label, focused }) => (
 
 export default function DonorNavigator() {
   const { user, userProfile } = useAuth();
+  const { t } = useLanguage();
   const { colors, isDark } = useTheme();
   const previousDonationsRef = useRef(null);
   const previousDeliveriesRef = useRef(null);
@@ -170,6 +173,11 @@ export default function DonorNavigator() {
           fontSize: 11,
           fontWeight: '600',
         },
+        tabBarLabel: ({ color }) => (
+          <LocalizedText style={{ color, fontSize: 11, fontWeight: '600' }}>
+            {t(`tabs.${route.name.toLowerCase()}`)}
+          </LocalizedText>
+        ),
         tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
       })}
     >

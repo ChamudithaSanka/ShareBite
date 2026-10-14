@@ -1,11 +1,14 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LocalizedText from '../components/LocalizedText';
 
 // Auth screens
 import SplashScreen from '../screens/auth/SplashScreen';
+import LanguageSelectionScreen from '../screens/auth/LanguageSelectionScreen';
 import OnboardScreen from '../screens/auth/OnboardScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
@@ -15,6 +18,8 @@ import RecipientNavigator from './RecipientNavigator';
 import DonorNavigator from './DonorNavigator';
 import VolunteerNavigator from './VolunteerNavigator';
 import CoordinatorNavigator from './CoordinatorNavigator';
+
+const Text = LocalizedText;
 
 const Stack = createStackNavigator();
 
@@ -34,6 +39,7 @@ function AuthStack({ initialRouteName = 'Splash' }) {
   return (
     <Stack.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Splash" component={SplashScreen} />
+      <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
       <Stack.Screen name="Onboard" component={OnboardScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
@@ -59,8 +65,9 @@ function RoleNavigator({ role }) {
 
 export default function AppNavigator() {
   const { user, userProfile, loading, signedOut } = useAuth();
+  const language = useLanguage();
 
-  if (loading) {
+  if (loading || !language.ready) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color="#1A7A4A" />
@@ -68,10 +75,19 @@ export default function AppNavigator() {
     );
   }
 
+  if (language.error) {
+    return (
+      <View style={styles.loader}>
+        <Text style={styles.errorTitle}>Unable to start ShareBite</Text>
+        <Text style={styles.placeholderSub}>{language.error.message || String(language.error)}</Text>
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
-      {!user || !userProfile
-        ? <AuthStack initialRouteName={signedOut ? 'Login' : 'Splash'} />
+      {!user || !userProfile || !language.languageSelected
+        ? <AuthStack initialRouteName={language.languageSelected && signedOut ? 'Login' : 'Splash'} />
         : <RoleNavigator role={userProfile.role || userProfile.Role} />}
     </NavigationContainer>
   );
@@ -84,6 +100,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
+  errorTitle: { color: '#B42318', fontSize: 18, fontWeight: '700', marginBottom: 8 },
   placeholder: {
     flex: 1,
     justifyContent: 'center',

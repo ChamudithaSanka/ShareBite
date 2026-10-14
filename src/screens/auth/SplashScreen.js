@@ -1,17 +1,20 @@
 import React, { useEffect } from 'react';
 import { Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLanguage } from '../../context/LanguageContext';
 
 const SPLASH_DURATION = 3000;
 
 export default function SplashScreen({ navigation }) {
+  const { languageSelected } = useLanguage();
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace('Onboard');
+      navigation.replace(languageSelected ? 'Onboard' : 'LanguageSelection');
     }, SPLASH_DURATION);
 
     return () => clearTimeout(timer);
-  }, [navigation]);
+  }, [languageSelected, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>

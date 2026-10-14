@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, TouchableOpacity,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
   Platform, ScrollView,
 } from 'react-native';
+import LocalizedText from '../../components/LocalizedText';
+import LocalizedTextInput from '../../components/LocalizedTextInput';
+import { useLanguage } from '../../context/LanguageContext';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
@@ -11,14 +14,21 @@ import { auth, db } from '../../config/firebase';
 const GREEN = '#1A7A4A';
 const ROLES = ['Donor', 'Recipient', 'Volunteer', 'Coordinator'];
 const ROLE_EMOJI = { Donor: '🤝', Recipient: '🍽️', Volunteer: '🚴', Coordinator: '🏪' };
-const ROLE_DESC = {
-  Donor: 'Share surplus food',
-  Recipient: 'Request food',
-  Volunteer: 'Deliver food',
-  Coordinator: 'Manage storage',
+const ROLE_TRANSLATION_KEYS = {
+  Donor: 'auth.roleDonor',
+  Recipient: 'auth.roleRecipient',
+  Volunteer: 'auth.roleVolunteer',
+  Coordinator: 'auth.roleCoordinator',
+};
+const ROLE_DESCRIPTION_KEYS = {
+  Donor: 'auth.shareSurplus',
+  Recipient: 'auth.requestFood',
+  Volunteer: 'auth.deliverFood',
+  Coordinator: 'auth.manageStorage',
 };
 
 export default function RegisterScreen({ navigation }) {
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -29,7 +39,7 @@ export default function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (!name || !email || !phone || !password) {
-      setError('Please fill in all fields.');
+      setError(t('auth.fillFields'));
       return;
     }
     setError('');
@@ -58,22 +68,22 @@ export default function RegisterScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.title}>Create account</Text>
-          <Text style={styles.subtitle}>Join the ShareBite community</Text>
+          <LocalizedText style={styles.title}>{t('auth.createAccount')}</LocalizedText>
+          <LocalizedText style={styles.subtitle}>{t('auth.joinCommunity')}</LocalizedText>
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <LocalizedText style={styles.errorText}>{error}</LocalizedText> : null}
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Full name</Text>
-          <TextInput style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+          <LocalizedText style={styles.label}>{t('auth.fullName')}</LocalizedText>
+          <LocalizedTextInput style={styles.input} placeholder={t('auth.yourName')} value={name} onChangeText={setName} />
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
+          <LocalizedText style={styles.label}>{t('auth.email')}</LocalizedText>
+          <LocalizedTextInput
             style={styles.input}
-            placeholder="you@email.com"
+            placeholder={t('auth.emailPlaceholder')}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -82,10 +92,10 @@ export default function RegisterScreen({ navigation }) {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Phone number</Text>
-          <TextInput
+          <LocalizedText style={styles.label}>{t('auth.phone')}</LocalizedText>
+          <LocalizedTextInput
             style={styles.input}
-            placeholder="+94 77 123 4567"
+            placeholder={t('auth.phonePlaceholder')}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
@@ -93,10 +103,10 @@ export default function RegisterScreen({ navigation }) {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
+          <LocalizedText style={styles.label}>{t('auth.password')}</LocalizedText>
+          <LocalizedTextInput
             style={styles.input}
-            placeholder="Min. 6 characters"
+            placeholder={t('auth.passwordPlaceholder')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -104,7 +114,7 @@ export default function RegisterScreen({ navigation }) {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>I want to join as</Text>
+          <LocalizedText style={styles.label}>{t('auth.joinAs')}</LocalizedText>
           <View style={styles.roleGrid}>
             {ROLES.map((role) => (
               <TouchableOpacity
@@ -112,11 +122,11 @@ export default function RegisterScreen({ navigation }) {
                 style={[styles.roleCard, selectedRole === role && styles.roleCardActive]}
                 onPress={() => setSelectedRole(role)}
               >
-                <Text style={styles.roleEmoji}>{ROLE_EMOJI[role]}</Text>
-                <Text style={[styles.roleName, selectedRole === role && styles.roleNameActive]}>
-                  {role}
-                </Text>
-                <Text style={styles.roleDesc}>{ROLE_DESC[role]}</Text>
+                <LocalizedText style={styles.roleEmoji}>{ROLE_EMOJI[role]}</LocalizedText>
+                <LocalizedText style={[styles.roleName, selectedRole === role && styles.roleNameActive]}>
+                  {t(ROLE_TRANSLATION_KEYS[role])}
+                </LocalizedText>
+                <LocalizedText style={styles.roleDesc}>{t(ROLE_DESCRIPTION_KEYS[role])}</LocalizedText>
               </TouchableOpacity>
             ))}
           </View>
@@ -129,13 +139,13 @@ export default function RegisterScreen({ navigation }) {
         >
           {loading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnPrimaryText}>Create account</Text>}
+            : <LocalizedText style={styles.btnPrimaryText}>{t('auth.createAccount')}</LocalizedText>}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.linkText}>
-            Already have an account? <Text style={styles.linkBold}>Sign in</Text>
-          </Text>
+          <LocalizedText style={styles.linkText}>
+            {t('auth.alreadyHaveAccount')} <LocalizedText style={styles.linkBold}>{t('onboarding.signIn')}</LocalizedText>
+          </LocalizedText>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

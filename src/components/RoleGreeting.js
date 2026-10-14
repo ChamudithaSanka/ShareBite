@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import LocalizedText from './LocalizedText';
 
 export default function RoleGreeting({
   greeting,
@@ -15,9 +16,9 @@ export default function RoleGreeting({
 
   return (
     <View>
-      <Text style={[styles.greeting, { color: secondaryColor }]}>{greeting}</Text>
-      <Text style={[styles.name, { color: textColor }]}>{firstName}</Text>
-      <Text style={[styles.role, { color: accentColor }]}>{role}</Text>
+      <LocalizedText style={[styles.greeting, { color: secondaryColor }]}>{greeting}</LocalizedText>
+      <LocalizedText style={[styles.name, { color: textColor }]}>{firstName}</LocalizedText>
+      <LocalizedText style={[styles.role, { color: accentColor }]}>{role}</LocalizedText>
     </View>
   );
 }

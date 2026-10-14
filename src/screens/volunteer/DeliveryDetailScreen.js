@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LocalizedText from '../../components/LocalizedText';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 import { acceptDelivery, subscribeToDelivery } from '../../services/deliveryService';
 import { calculateDistance, coordinatesFromValue } from '../../utils';
+
+const Text = LocalizedText;
 
 const GREEN = '#1A7A4A';
 const pickupFor = (delivery) => delivery.pickupLocation || delivery.pickupAddress || 'Pickup location unavailable';

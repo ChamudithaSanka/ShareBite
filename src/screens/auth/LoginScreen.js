@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, TouchableOpacity,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
   Platform, ScrollView,
 } from 'react-native';
+import LocalizedText from '../../components/LocalizedText';
+import LocalizedTextInput from '../../components/LocalizedTextInput';
+import { useLanguage } from '../../context/LanguageContext';
 import { Image } from 'expo-image';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../config/firebase';
@@ -11,6 +14,7 @@ import { auth } from '../../config/firebase';
 const GREEN = '#1A7A4A';
 
 export default function LoginScreen({ navigation }) {
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,7 +22,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError('Please fill in all fields.');
+      setError(t('auth.fillFields'));
       return;
     }
     setError('');
@@ -47,17 +51,17 @@ export default function LoginScreen({ navigation }) {
             cachePolicy="memory-disk"
             transition={0}
           />
-          <Text style={styles.title}>Welcome</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
+          <LocalizedText style={styles.title}>{t('auth.welcome')}</LocalizedText>
+          <LocalizedText style={styles.subtitle}>{t('auth.signInToAccount')}</LocalizedText>
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <LocalizedText style={styles.errorText}>{error}</LocalizedText> : null}
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
+          <LocalizedText style={styles.label}>{t('auth.email')}</LocalizedText>
+          <LocalizedTextInput
             style={styles.input}
-            placeholder="you@email.com"
+            placeholder={t('auth.emailPlaceholder')}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -66,8 +70,8 @@ export default function LoginScreen({ navigation }) {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
+          <LocalizedText style={styles.label}>{t('auth.password')}</LocalizedText>
+          <LocalizedTextInput
             style={styles.input}
             placeholder="••••••••"
             value={password}
@@ -83,13 +87,13 @@ export default function LoginScreen({ navigation }) {
         >
           {loading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnPrimaryText}>Sign in</Text>}
+            : <LocalizedText style={styles.btnPrimaryText}>{t('onboarding.signIn')}</LocalizedText>}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.linkText}>
-            Don't have an account? <Text style={styles.linkBold}>Register</Text>
-          </Text>
+          <LocalizedText style={styles.linkText}>
+            {t('auth.dontHaveAccount')} <LocalizedText style={styles.linkBold}>{t('auth.register')}</LocalizedText>
+          </LocalizedText>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

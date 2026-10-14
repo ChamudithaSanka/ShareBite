@@ -11,7 +11,10 @@ import {
   View as NativeView,
 } from 'react-native';
 import { SafeAreaView as NativeSafeAreaView } from 'react-native-safe-area-context';
+import { useLanguage } from '../context/LanguageContext';
+import { translateText } from '../i18n/translations';
 import { useTheme } from '../context/ThemeContext';
+import { scaleTextStyle } from '../utils/textStyles';
 
 const DARK_TINTS = {
   '#E8F5EE': '#234C35',
@@ -75,7 +78,11 @@ export function ThemedView({ style, ...props }) {
 
 export function ThemedText({ style, ...props }) {
   const { colors, isDark } = useTheme();
-  return <NativeText {...props} style={themedStyle(style, colors, isDark)} />;
+  const { fontFamily, fontScale, language } = useLanguage();
+  const children = React.Children.map(props.children, (child) => (
+    typeof child === 'string' ? translateText(language, child) : child
+  ));
+  return <NativeText {...props} children={children} style={[fontFamily ? { fontFamily } : null, scaleTextStyle(themedStyle(style, colors, isDark), fontScale)]} />;
 }
 
 export function ThemedTouchableOpacity({ style, ...props }) {
@@ -112,10 +119,12 @@ export function ThemedSafeAreaView({ style, ...props }) {
 
 export function ThemedTextInput({ style, placeholderTextColor, ...props }) {
   const { colors, isDark } = useTheme();
+  const { fontFamily, fontScale, language } = useLanguage();
   return (
     <NativeTextInput
       {...props}
-      style={themedStyle(style, colors, isDark)}
+      placeholder={props.placeholder ? translateText(language, props.placeholder) : props.placeholder}
+      style={[fontFamily ? { fontFamily } : null, scaleTextStyle(themedStyle(style, colors, isDark), fontScale)]}
       placeholderTextColor={themedColor(placeholderTextColor, 'color', colors, isDark)}
     />
   );

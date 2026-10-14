@@ -1,17 +1,22 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { View, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import LocalizedText from '../../components/LocalizedText';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 import RoleGreeting from '../../components/RoleGreeting';
 import { donationService } from '../../services/donationService';
 import { sumMealPortionQuantities } from '../../utils/quantity';
 
+const Text = LocalizedText;
+
 export default function DonorHomeScreen() {
   const navigation = useNavigation();
   const { user, userProfile } = useAuth();
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const tabBarContentPadding = useTabBarContentPadding();
   const [donations, setDonations] = useState([]);
@@ -55,10 +60,10 @@ export default function DonorHomeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
     <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding }]} showsVerticalScrollIndicator={false}>
       <RoleGreeting
-        greeting="Welcome,"
+        greeting={t('home.greetingWelcome')}
         name={userProfile?.name}
-        fallbackName="Donor"
-        role="Donor"
+        fallbackName={t('home.donor.role')}
+        role={t('home.donor.role')}
         textColor={colors.text}
         secondaryColor={colors.textSecondary}
         accentColor={colors.primary}
@@ -67,24 +72,24 @@ export default function DonorHomeScreen() {
       <View style={styles.statsRow}>
         <View style={[styles.statCard, { backgroundColor: colors.primarySoft, borderColor: colors.border }]}>
           <Text style={[styles.statValue, { color: colors.primary }]}>{loading ? '-' : activeCount}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('home.donor.active')}</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
           <Text style={[styles.statValue, { color: colors.primary }]}>{loading ? '-' : totalCount}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('home.donor.total')}</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
           <Text style={[styles.statValue, { color: colors.primary }]}>{loading ? '-' : mealsShared}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Meals/portions listed</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('home.donor.meals')}</Text>
         </View>
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Recent donations</Text>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{t('home.donor.recent')}</Text>
         {loading ? (
           <ActivityIndicator size="small" color={colors.primary} />
         ) : donations.length === 0 ? (
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No donations yet. Create your first one.</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('home.donor.empty')}</Text>
         ) : (
           donations.slice(0, 3).map((item) => (
             <TouchableOpacity
@@ -97,7 +102,7 @@ export default function DonorHomeScreen() {
                 <Text style={[styles.itemName, { color: colors.text }]}>{item.foodName}</Text>
                 <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{item.quantity} • {item.foodType}</Text>
               </View>
-              <Text style={[styles.itemStatus, { color: colors.primary }]}>{item.status}</Text>
+              <Text style={[styles.itemStatus, { color: colors.primary }]}>{t(`status.${item.status}`)}</Text>
             </TouchableOpacity>
           ))
         )}

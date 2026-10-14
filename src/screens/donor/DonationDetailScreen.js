@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LocalizedText from '../../components/LocalizedText';
+import LocalizedTextInput from '../../components/LocalizedTextInput';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 import { donationService, subscribeToDonation } from '../../services/donationService';
 import { FOOD_QUANTITY_UNITS, formatFoodQuantity, resolveDonationQuantity } from '../../utils/quantity';
+
+const Text = LocalizedText;
+const TextInput = LocalizedTextInput;
 
 export default function DonationDetailScreen() {
   const navigation = useNavigation();

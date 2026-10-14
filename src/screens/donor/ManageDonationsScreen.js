@@ -1,11 +1,14 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { View, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LocalizedText from '../../components/LocalizedText';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 import { donationService } from '../../services/donationService';
+
+const Text = LocalizedText;
 
 export default function ManageDonationsScreen() {
   const navigation = useNavigation();

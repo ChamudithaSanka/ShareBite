@@ -1,12 +1,15 @@
 import React from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useFonts } from 'expo-font';
+import LocalizedText from '../../components/LocalizedText';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function OnboardScreen({ navigation }) {
+  const { t } = useLanguage();
   const [fontsLoaded] = useFonts({
     BilderbergItalic: require('../../../assets/Bilderberg Italic OTF.otf'),
   });
@@ -23,12 +26,10 @@ export default function OnboardScreen({ navigation }) {
             transition={0}
           />
         </View>
-        <Text style={[styles.appName, fontsLoaded && styles.customAppName]}>
-          Share<Text style={styles.biteAccent}>Bite</Text>
-        </Text>
-        <Text style={styles.tagline}>
-          SHARE FOOD • SHARE HOPE
-        </Text>
+        <LocalizedText style={[styles.appName, fontsLoaded && styles.customAppName]}>
+          Share<LocalizedText style={styles.biteAccent}>Bite</LocalizedText>
+        </LocalizedText>
+        <LocalizedText style={styles.tagline}>{t('onboarding.tagline')}</LocalizedText>
       </View>
 
       <View style={styles.actions}>
@@ -36,13 +37,13 @@ export default function OnboardScreen({ navigation }) {
           style={styles.btnPrimary}
           onPress={() => navigation.navigate('Register')}
         >
-          <Text style={styles.btnPrimaryText}>Get started</Text>
+          <LocalizedText style={styles.btnPrimaryText}>{t('onboarding.getStarted')}</LocalizedText>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.btnSecondary}
           onPress={() => navigation.navigate('Login')}
         >
-          <Text style={styles.btnSecondaryText}>Sign in</Text>
+          <LocalizedText style={styles.btnSecondaryText}>{t('onboarding.signIn')}</LocalizedText>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

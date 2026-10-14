@@ -3,14 +3,14 @@ import {
   Image,
   Platform,
   View,
-  Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import LocalizedText from '../../components/LocalizedText';
+import LocalizedTextInput from '../../components/LocalizedTextInput';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
@@ -21,6 +21,9 @@ import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 import { donationService } from '../../services/donationService';
 import { FOOD_QUANTITY_UNITS, formatFoodQuantity } from '../../utils/quantity';
+
+const Text = LocalizedText;
+const TextInput = LocalizedTextInput;
 
 const GREEN = '#1A7A4A';
 

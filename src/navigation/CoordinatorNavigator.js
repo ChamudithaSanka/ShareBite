@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import AnimatedTabIcon from '../components/AnimatedTabIcon';
+import LocalizedText from '../components/LocalizedText';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { subscribeToPendingDonations, subscribeToPendingRequests } from '../services/coordinatorService';
 import {
@@ -82,6 +84,7 @@ function CoordinatorProfileStack() {
 // ─── Root tab navigator ─────────────────────────────────────────────────────
 export default function CoordinatorNavigator() {
   const { user, userProfile } = useAuth();
+  const { t } = useLanguage();
   const { colors, isDark } = useTheme();
   const userRole = String(userProfile?.role || userProfile?.Role || '').trim().toLowerCase();
   const notificationPreferences = userProfile?.notificationPreferences || {};
@@ -186,6 +189,11 @@ export default function CoordinatorNavigator() {
           fontSize: 11,
           fontWeight: '600',
         },
+        tabBarLabel: ({ color }) => (
+          <LocalizedText style={{ color, fontSize: 11, fontWeight: '600' }}>
+            {t(`tabs.${route.name.toLowerCase()}`)}
+          </LocalizedText>
+        ),
         tabBarIcon: ({ focused }) => (
           <TabIcon label={route.name} focused={focused} />
         ),

@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import AnimatedTabIcon from '../components/AnimatedTabIcon';
+import LocalizedText from '../components/LocalizedText';
 import { subscribeToAvailableDeliveries, subscribeToVolunteerDeliveries } from '../services/deliveryService';
 import { configureLocalNotifications, notifyForDeliveryChange } from '../services/notificationService';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 
 import VolunteerHomeScreen from '../screens/volunteer/VolunteerHomeScreen';
@@ -48,6 +50,7 @@ const TabIcon = ({ routeName, focused }) => (
 
 export default function VolunteerNavigator() {
   const { user, userProfile } = useAuth();
+  const { t } = useLanguage();
   const { colors, isDark } = useTheme();
   const [availableDeliveryCount, setAvailableDeliveryCount] = useState(0);
   const previousDeliveriesRef = useRef(null);
@@ -136,6 +139,11 @@ export default function VolunteerNavigator() {
           fontSize: 11,
           fontWeight: '600',
         },
+        tabBarLabel: ({ color }) => (
+          <LocalizedText style={{ color, fontSize: 11, fontWeight: '600' }}>
+            {t(`tabs.${route.name.toLowerCase()}`)}
+          </LocalizedText>
+        ),
         tabBarIcon: ({ focused }) => <TabIcon routeName={route.name} focused={focused} />,
       })}
     >

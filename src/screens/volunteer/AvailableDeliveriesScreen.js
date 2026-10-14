@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LocalizedText from '../../components/LocalizedText';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 import { subscribeToAvailableDeliveries, subscribeToVolunteerDeliveries } from '../../services/deliveryService';
+
+const Text = LocalizedText;
 
 const GREEN = '#1A7A4A';
 const pickupFor = (delivery) => delivery.pickupLocation || delivery.pickupAddress || 'Pickup unavailable';

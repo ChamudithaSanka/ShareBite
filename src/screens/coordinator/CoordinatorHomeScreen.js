@@ -14,6 +14,7 @@ import {
   ThemedView as View,
 } from '../../components/ThemedPrimitives';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTabBarContentPadding } from '../../hooks';
 import RoleGreeting from '../../components/RoleGreeting';
@@ -83,6 +84,7 @@ function ActionRow({ emoji, bg, title, sub, onPress }) {
 export default function CoordinatorHomeScreen() {
   const navigation = useNavigation();
   const { userProfile } = useAuth();
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const tabBarContentPadding = useTabBarContentPadding();
 
@@ -139,10 +141,10 @@ export default function CoordinatorHomeScreen() {
         <View style={s.greeting}>
           <View>
             <RoleGreeting
-              greeting="Good day,"
+              greeting={t('home.greetingGoodDay')}
               name={userProfile?.name}
-              fallbackName="Coordinator"
-              role="Community Food Coordinator"
+              fallbackName={t('home.coordinator.role')}
+              role={t('home.coordinator.role')}
               textColor={colors.text}
               secondaryColor={colors.textSecondary}
               accentColor={colors.primary}
@@ -152,10 +154,10 @@ export default function CoordinatorHomeScreen() {
 
         {/* ── Dashboard banner ── */}
         <View style={s.banner}>
-          <Text style={s.bannerTitle}>Dashboard overview</Text>
-          <Text style={s.bannerSub}>Tap a card to navigate</Text>
+          <Text style={s.bannerTitle}>{t('home.coordinator.dashboard')}</Text>
+          <Text style={s.bannerSub}>{t('home.coordinator.tapCard')}</Text>
         </View>
-        {countsError ? <Text style={s.countsError}>{countsError}</Text> : null}
+        {countsError ? <Text style={s.countsError}>{t('home.coordinator.countsError')}</Text> : null}
 
         {/* ── Stat cards ── */}
         {loading ? (
@@ -165,19 +167,19 @@ export default function CoordinatorHomeScreen() {
         ) : (
           <View style={s.statsRow}>
             <StatCard
-              emoji="📦" value={counts.pending}   label="Pending"
+              emoji="📦" value={counts.pending}   label={t('home.coordinator.pending')}
               color={C.amber}  bg={C.amberLight}  borderColor={C.amberBorder}
               onPress={() => navigation.navigate('Donations')}
               loading={loading}
             />
             <StatCard
-              emoji="🏪" value={counts.inventory} label="In Stock"
+              emoji="🏪" value={counts.inventory} label={t('home.coordinator.inStock')}
               color={C.green}  bg={C.greenPale}   borderColor={C.greenBorder}
               onPress={() => navigation.navigate('Inventory')}
               loading={loading}
             />
             <StatCard
-              emoji="📋" value={counts.requests}  label="Requests"
+              emoji="📋" value={counts.requests}  label={t('home.coordinator.requests')}
               color={C.blue}   bg={C.blueLight}   borderColor={C.blueBorder}
               onPress={() => navigation.navigate('Requests')}
               loading={loading}
@@ -186,26 +188,26 @@ export default function CoordinatorHomeScreen() {
         )}
 
         {/* ── Quick actions ── */}
-        <Text style={s.sectionLabel}>QUICK ACTIONS</Text>
+        <Text style={s.sectionLabel}>{t('home.coordinator.quickActions')}</Text>
         <View style={s.actionsCard}>
           <ActionRow
             emoji="📦" bg={C.amberLight}
-            title="Review Donations"
-            sub="Accept or decline storable donations"
+            title={t('home.coordinator.reviewDonations')}
+            sub={t('home.coordinator.acceptDecline')}
             onPress={() => navigation.navigate('Donations')}
           />
           <View style={s.divider} />
           <ActionRow
             emoji="🏪" bg={C.greenPale}
-            title="Manage Inventory"
-            sub="View stock levels and expiry dates"
+            title={t('home.coordinator.manageInventory')}
+            sub={t('home.coordinator.viewStock')}
             onPress={() => navigation.navigate('Inventory')}
           />
           <View style={s.divider} />
           <ActionRow
             emoji="📋" bg={C.blueLight}
-            title="Approve Requests"
-            sub="Review recipient food requests"
+            title={t('home.coordinator.approveRequests')}
+            sub={t('home.coordinator.reviewRequests')}
             onPress={() => navigation.navigate('Requests')}
           />
         </View>
